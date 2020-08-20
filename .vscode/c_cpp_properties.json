@@ -1,0 +1,15 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/opt/msp430-gcc/include"
+            ],
+            "defines": [],
+            "compilerPath": "/opt/msp430-gcc/bin/msp430-elf-gcc",
+            "cStandard": "c99"
+        }
+    ],
+    "version": 4
+}

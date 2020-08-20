@@ -1,0 +1,38 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/jiezhan/work/tiworkspace/opta/aes/aesa.c
+msp430fr5994.h
+-
+aesa.h
+/Users/jiezhan/work/tiworkspace/opta/aes/aesa.h
+
+/Users/jiezhan/work/tiworkspace/opta/aes/aesa.h
+stdint.h
+-
+
+/Users/jiezhan/work/tiworkspace/opta/aes/main.c
+msp430fr5994.h
+-
+aesa.h
+/Users/jiezhan/work/tiworkspace/opta/aes/aesa.h
+
+/opt/msp430-gcc/include/in430.h
+
+/opt/msp430-gcc/include/iomacros.h
+
+/opt/msp430-gcc/include/legacy.h
+
+/opt/msp430-gcc/include/msp430fr5994.h
+in430.h
+/opt/msp430-gcc/include/in430.h
+iomacros.h
+-
+legacy.h
+/opt/msp430-gcc/include/legacy.h
+

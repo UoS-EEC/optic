@@ -1,0 +1,1 @@
+/opt/msp430-gcc/bin/msp430-elf-gcc -g  -T /opt/msp430-gcc/include/msp430fr5994.ld /opt/msp430-gcc/include/msp430fr5994_symbols.ld CMakeFiles/aes.dir/main.c.obj CMakeFiles/aes.dir/aesa.c.obj  -o aes.elf   -L/opt/msp430-gcc/include 
