@@ -1,6 +1,0 @@
-/Users/jiezhan/work/tiworkspace/opta/build/CMakeFiles/rebuild_cache.dir
-/Users/jiezhan/work/tiworkspace/opta/build/CMakeFiles/edit_cache.dir
-/Users/jiezhan/work/tiworkspace/opta/build/aes/CMakeFiles/upload_aes.dir
-/Users/jiezhan/work/tiworkspace/opta/build/aes/CMakeFiles/rebuild_cache.dir
-/Users/jiezhan/work/tiworkspace/opta/build/aes/CMakeFiles/edit_cache.dir
-/Users/jiezhan/work/tiworkspace/opta/build/aes/CMakeFiles/aes.dir
