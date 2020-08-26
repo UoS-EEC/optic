@@ -2,9 +2,7 @@
 #include "aesa.h"
 
 // AES accelerator, cipher block chain mode
-void aes_128_enc(uint8_t* key, uint8_t* plaintext, uint8_t* ciphertext, uint8_t* iv, uint8_t num_blocks)
-// (key, IV, plaintext, ciphertext, num_blocks)
-{
+void aes_128_enc(uint8_t* key, uint8_t* plaintext, uint8_t* ciphertext, uint8_t* iv, uint8_t num_blocks) {
     // Reset AES Module (clears internal state memory)
     AESACTL0 = AESSWRST;
 
