@@ -9,6 +9,8 @@ add_executable(
     main.c
     aesa.c
     aesa.h
+    ic.c
+    ic.h
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES SUFFIX ".elf")
@@ -40,7 +42,8 @@ target_link_directories(
 )
 target_link_options(
     ${TARGET_NAME}
-    PRIVATE -T ${MSP430_GCC_DIR}/include/${DEVICE}.ld
+    # PRIVATE -T ${MSP430_GCC_DIR}/include/${DEVICE}.ld
+    PRIVATE -T ${CMAKE_CURRENT_LIST_DIR}/../${DEVICE}.ld
     PRIVATE -T ${MSP430_GCC_DIR}/include/${DEVICE}_symbols.ld
 )
 
