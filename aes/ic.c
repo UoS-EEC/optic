@@ -1,14 +1,14 @@
 #include <msp430fr5994.h>
 #include "ic.h"
 
-// typedef struct AtomFuncState_s {
-//     uint8_t need_calibrate;
-//     uint8_t check_fail;
-//     uint8_t resume_threshold;
-//     uint8_t backup_threshold;
-// } AtomFuncState;
+typedef struct AtomFuncState_s {
+    uint8_t calibrated; // 0: need to calibrate, 1: no need
+    uint8_t check_fail; // set at the function beginning, reset at the end; so '1' at the entry means failed
+    uint8_t resume_thr; // resume threshold, represented as the resistor tap setting of the internal comparator
+    uint8_t backup_thr; // backup threshold, represented as the resistor tap setting of the internal comparator
+} AtomFuncState;
 
-// AtomFuncState atom_state[ATOM_FUNC_NUM];
+AtomFuncState atom_state[ATOM_FUNC_NUM];
 
 uint8_t need_calibrate PERSISTENT = 1;
 uint8_t check_fail PERSISTENT;
@@ -25,7 +25,6 @@ uint16_t adc_reading;
 void adc12_init(void) {
     // Configure ADC12
     
-
     REFCTL0 |= REFVSEL_1;                   // 2.0 V reference selected, comment this to use 1.2V
 
     ADC12CTL0 = ADC12SHT0_2 |               // 16 cycles sample and hold time
@@ -166,14 +165,15 @@ void atom_func_start(void) {
         // wait for the highest voltage, assumed to be 3.6 V
         // CECTL1 &= ~CEON;
         CECTL2 &= ~CEREF0;
-        CECTL2 |= CEREF0_28; // set VREF0 = 29/32 Vref, 3.625V with 2V ref and 1/2 voltage divider
+        CECTL2 |= CEREF0_27; // set VREF0 = 28/32 Vref, 3.5V with 2V ref and 1/2 voltage divider
         CECTL1 |= CEMRVS;
         // CECTL1 |= CEON;
         __bis_SR_register(LPM4_bits | GIE);
         CECTL1 &= ~CEMRVS;
 
         // calibrate
-        ADC12CTL0 |= ADC12ENC | ADC12SC;    // Start sampling/conversion
+        P1OUT |= BIT3; // short-circuit the supply
+        ADC12CTL0 |= ADC12ENC | ADC12SC; // Start sampling & conversion
         __bis_SR_register(LPM0_bits | GIE);
         adc_r1 = adc_reading;
     } else {
@@ -186,18 +186,19 @@ void atom_func_start(void) {
 
     check_fail = 1; // this is reset at the end of atomic function; if failed, this is still set on reboots
 
-    P1OUT |= BIT4; // for debug
+    P1OUT |= BIT4; // for debugging, indicating function starts
 }
 
 void atom_func_end(void) {
-    P1OUT &= ~BIT4; // for debug
+    P1OUT &= ~BIT4; // for debugging, indicating function ends
 
     if (need_calibrate) {
         // calibrate
         ADC12CTL0 |= ADC12ENC | ADC12SC;    // Start sampling/conversion
         __bis_SR_register(LPM0_bits);
         adc_r2 = adc_reading;
-
+        P1OUT &= ~BIT3; // reconnect the supply
+        
         // check this type cast
         // check its conversion for energy / charges
         resume_threshold = (uint8_t) ((double) (adc_r1 - adc_r2) / 4095.0 * 32.0) + 1 + backup_threshold; 
