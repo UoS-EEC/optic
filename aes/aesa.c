@@ -4,8 +4,8 @@
 #include "ic.h"
 
 // AES accelerator, cipher block chain mode
-void aes_128_enc(uint8_t* plaintext, uint8_t* ciphertext, uint8_t* key, uint8_t* iv, uint8_t num_blocks) {
-    // atom_func_start();
+void aes_128_enc(uint8_t* key, uint8_t* iv, uint8_t* plaintext, uint8_t* ciphertext, uint8_t num_blocks) {
+    atom_func_start(AES_128_ENC);
 
     // Reset AES Module (clears internal state memory)
     AESACTL0 = AESSWRST;
@@ -61,10 +61,12 @@ void aes_128_enc(uint8_t* plaintext, uint8_t* ciphertext, uint8_t* key, uint8_t*
     while (!(DMA0CTL & DMAIFG));
     DMA0CTL &= ~DMAIFG;
 
-    // atom_func_end();
+    atom_func_end(AES_128_ENC);
 }
 
-void aes_128_dec(uint8_t* ciphertext, uint8_t* plaintext, uint8_t* key, uint8_t* iv, uint8_t num_blocks) {
+void aes_128_dec(uint8_t* key, uint8_t* iv, uint8_t* ciphertext, uint8_t* plaintext, uint8_t num_blocks) {
+    // atom_func_start(AES_128_DEC);
+    
     // Reset AES Module (clears internal state memory)
     AESACTL0 = AESSWRST;
     
@@ -133,4 +135,6 @@ void aes_128_dec(uint8_t* ciphertext, uint8_t* plaintext, uint8_t* key, uint8_t*
 
     while(!(DMA1CTL & DMAIFG));     // Wait until end of decryption on DMA 1
     DMA0CTL &= ~DMAIFG;
+
+    // atom_func_end(AES_128_DEC);
 }

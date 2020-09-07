@@ -7,8 +7,8 @@
 
 void adc12_init(void);
 void comp_init(void);
-void atom_func_start(void);
-void atom_func_end(void);
+void atom_func_start(uint8_t func_id);
+void atom_func_end(uint8_t func_id);
 
 
 // configs

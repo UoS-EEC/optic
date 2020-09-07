@@ -5,15 +5,15 @@ typedef struct AtomFuncState_s {
     uint8_t calibrated; // 0: need to calibrate, 1: no need
     uint8_t check_fail; // set at the function beginning, reset at the end; so '1' at the entry means failed
     uint8_t resume_thr; // resume threshold, represented as the resistor tap setting of the internal comparator
-    uint8_t backup_thr; // backup threshold, represented as the resistor tap setting of the internal comparator
+    // uint8_t backup_thr; // backup threshold, represented as the resistor tap setting of the internal comparator
 } AtomFuncState;
 
-AtomFuncState atom_state[ATOM_FUNC_NUM];
+AtomFuncState atom_state[ATOM_FUNC_NUM] PERSISTENT;
 
-uint8_t need_calibrate PERSISTENT = 1;
-uint8_t check_fail PERSISTENT;
-uint8_t resume_threshold PERSISTENT = 20; // resistor tap setting for VREF0, init 21/32, 2.625V
-uint8_t backup_threshold PERSISTENT = 16; // resistor tap setting for VREF1, init 17/32, 2.125V
+// uint8_t need_calibrate PERSISTENT = 1;
+// uint8_t check_fail PERSISTENT;
+// uint8_t resume_threshold PERSISTENT = 20; // resistor tap setting for VREF0, init 21/32, 2.625V
+// uint8_t backup_threshold PERSISTENT = 16; // resistor tap setting for VREF1, init 17/32, 2.125V
 
 
 uint16_t adc_r1;
@@ -24,12 +24,11 @@ uint16_t adc_reading;
 
 void adc12_init(void) {
     // Configure ADC12
-    
     REFCTL0 |= REFVSEL_1;                   // 2.0 V reference selected, comment this to use 1.2V
 
     ADC12CTL0 = ADC12SHT0_2 |               // 16 cycles sample and hold time
                 ADC12ON     ;               // ADC12 on
-    ADC12CTL1 = ADC12PDIV_3 |               // Predive by 64
+    ADC12CTL1 = ADC12PDIV_1 |               // Predive by 4
                 ADC12SHP    ;               // SAMPCON is from the sampling timer
     // ADC12CTL2 = ADC12RES_2;                // Default: 12-bit conversion results, 14 cycles conversion time
 
@@ -98,58 +97,55 @@ void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12_ISR (void) {
 }
 
 void comp_init(void) {
-    P1SEL1 |= BIT2;                         // P1.2 C2 for Vcompare
-    P1SEL0 |= BIT2;
-
-    // P3SEL1 |= BIT0;                         // P3.0 C12 for Vcompare
-    // P3SEL0 |= BIT0;
-
-    P1DIR  |= BIT1;                         // P1.1 COUT output direction
-    P1SEL1 |= BIT1;                         // Select COUT function on P1.1/COUT
-
-    // REFCTL0 |= REFVSEL_1;
+    // P1DIR  |= BIT1;                 // P1.1 COUT output direction
+    // P1SEL1 |= BIT1;                 // Select COUT function on P1.1/COUT
 
     // Setup Comparator_E
-    // CECTL0 = CEIPEN | CEIPSEL_12;             // Enable V+, input channel C12
-    CECTL0 = CEIPEN | CEIPSEL_2;            // Enable V+, input channel C2
+    // CECTL0 = CEIPEN | CEIPSEL_12;   // Enable V+, input channel C12
+    CECTL0 = CEIPEN | CEIPSEL_2;    // Enable V+, input channel C2
 
-    CECTL1 = CEPWRMD_1|                       // Normal power mode
+    CECTL1 = CEPWRMD_1|             // Normal power mode
              CEF      |
              CEFDLY_3 ;
-    // CECTL1 = CEMRVS   |                     // CMRVL selects the refV - VREF0
-    //          CEPWRMD_1|                     // Normal power mode / Ultra-low power mode
-    //          CEF      |                     // Output filter enabled            
-    //          CEFDLY_3 ;                     // Output filter delay 3600 ns
+    // CECTL1 = CEMRVS   |             // CMRVL selects the refV - VREF0
+    //          CEPWRMD_1|             // Normal power mode / Ultra-low power mode
+    //          CEF      |             // Output filter enabled            
+    //          CEFDLY_3 ;             // Output filter delay 3600 ns
                                             
-    CECTL2 = CEREFL_2 |                     // VREF 2.0 V is selected
-             CERS_2   |                     // VREF applied to R-ladder
-             CERSEL   |                     // to -terminal
-             CEREF0_20|
-             CEREF1_16;   
+    CECTL2 = CEREFL_2 |             // VREF 2.0 V is selected
+             CERS_2   |             // VREF applied to R-ladder
+             CERSEL   |             // to -terminal
+             CEREF0_20|             // 2.625 V
+             CEREF1_16;             // 2.125 V   
 
-    // CECTL3 = CEPD12   ;                     // Input Buffer Disable @P3.0/C12
-    CECTL3 = CEPD2;                         // C2
+    // P3SEL1 |= BIT0;                 // P3.0 C12 for Vcompare
+    // P3SEL0 |= BIT0;
+    // CECTL3 = CEPD12   ;             // Input Buffer Disable @P3.0/C12
 
-    CEINT  = CEIE     |                     // Interrupt enabled
-             CEIIE    ;                     // Inverted interrupt enabled
-    //          CERDYIE  ;                     // Ready interrupt enabled
+    P1SEL1 |= BIT2;                 // P1.2 C2 for Vcompare
+    P1SEL0 |= BIT2;
+    CECTL3 = CEPD2;                 // C2
 
-    CECTL1 |= CEON;                         // Turn On Comparator_E
+    CEINT  = CEIE     |             // Interrupt enabled
+             CEIIE    ;             // Inverted interrupt enabled
+    //          CERDYIE  ;             // Ready interrupt enabled
+
+    CECTL1 |= CEON;                 // Turn On Comparator_E
 }
 
-// Comparator E ISR
+// Comparator E interrupt service routine
 void __attribute__ ((interrupt(COMP_E_VECTOR))) Comp_ISR (void) {
     switch(__even_in_range(CEIV, CEIV_CERDYIFG)) {
         case CEIV_NONE: break;
         case CEIV_CEIFG:
             CEINT &= ~CEIFG;
-            // P1OUT |= BIT4;
             __bic_SR_register_on_exit(LPM4_bits);
+            P1OUT &= ~BIT4; // debug
             break;
         case CEIV_CEIIFG:
             CEINT &= ~CEIIFG;
-            // P1OUT &= ~BIT4;
             __bis_SR_register_on_exit(LPM4_bits | GIE);
+            P1OUT |= BIT4; // debug
             break;
         case CEIV_CERDYIFG:
             CEINT &= ~CERDYIFG;
@@ -158,56 +154,92 @@ void __attribute__ ((interrupt(COMP_E_VECTOR))) Comp_ISR (void) {
     }
 }
 
-void atom_func_start(void) {
-    if (check_fail) need_calibrate = 1;
-
-    if (need_calibrate) {
-        // wait for the highest voltage, assumed to be 3.6 V
-        // CECTL1 &= ~CEON;
-        CECTL2 &= ~CEREF0;
-        CECTL2 |= CEREF0_27; // set VREF0 = 28/32 Vref, 3.5V with 2V ref and 1/2 voltage divider
+void atom_func_start(uint8_t func_id) {
+    if (atom_state[func_id].check_fail)
+        atom_state[func_id].calibrated = 0;
+    
+    if (atom_state[func_id].calibrated) { 
+        // don't need calibration
+        // set comparator to the previously calibrated threshold
+        CECTL2 = (CECTL2 & ~CEREF0) | (CEREF0 & (uint16_t) atom_state[func_id].resume_thr);
+        // CEINT &= ~CEIIE;
         CECTL1 |= CEMRVS;
-        // CECTL1 |= CEON;
-        __bis_SR_register(LPM4_bits | GIE);
+        __no_operation(); // sleep here if voltage is not high enough
+
         CECTL1 &= ~CEMRVS;
+        // CEINT |= CEIIE;
+    } else { 
+        // need calibration
+        // wait for the highest voltage, assumed to be 3.5 V
+        // CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_27; // set VREF0 = 28/32 * Vref = 3.5V, Vref = 4V (2V Vref / 1/2 input divider)
+        CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_25; // set VREF0 = 26/32 * Vref = 3.25 V
+        // CEINT &= ~CEIIE;
+        CECTL1 |= CEMRVS;
+        __no_operation(); // sleep here if voltage is not high enough
+
+        CECTL1 &= ~CEMRVS;
+        // CEINT |= CEIIE;
 
         // calibrate
-        P1OUT |= BIT3; // short-circuit the supply
-        ADC12CTL0 |= ADC12ENC | ADC12SC; // Start sampling & conversion
+        // adc sampling takes 145 us
+        P1OUT |= BIT5; // debug
+        ADC12CTL0 |= ADC12ENC | ADC12SC; // start sampling & conversion
         __bis_SR_register(LPM0_bits | GIE);
         adc_r1 = adc_reading;
-    } else {
-        CECTL2 &= ~CEREF0;
-        CECTL2 |= (uint16_t) resume_threshold;
-        CECTL1 |= CEMRVS;
-        __bis_SR_register(LPM4_bits | GIE);
-        CECTL1 &= ~CEMRVS;
+        P1OUT &= ~BIT5; // debug
+
+        P1OUT |= BIT3; // short-circuit the supply
     }
 
-    check_fail = 1; // this is reset at the end of atomic function; if failed, this is still set on reboots
+    atom_state[func_id].check_fail = 1; // this is reset at the end of atomic function; if failed, this is still set on reboots
 
-    P1OUT |= BIT4; // for debugging, indicating function starts
+    P1OUT |= BIT5; // debug, indicate function starts
 }
 
-void atom_func_end(void) {
-    P1OUT &= ~BIT4; // for debugging, indicating function ends
+void atom_func_end(uint8_t func_id) {
+    P1OUT &= ~BIT5; // debug, indicate function ends
 
-    if (need_calibrate) {
-        // calibrate
+    if (!atom_state[func_id].calibrated) { 
+        // end of a calibration
+        // measure end voltage
+        P1OUT &= ~BIT3; // reconnect the supply
+
+        P1OUT |= BIT5; // debug
         ADC12CTL0 |= ADC12ENC | ADC12SC;    // Start sampling/conversion
         __bis_SR_register(LPM0_bits);
         adc_r2 = adc_reading;
-        P1OUT &= ~BIT3; // reconnect the supply
+        P1OUT &= ~BIT5; // debug
+    
         
-        // check this type cast
-        // check its conversion for energy / charges
-        resume_threshold = (uint8_t) ((double) (adc_r1 - adc_r2) / 4095.0 * 32.0) + 1 + backup_threshold; 
+        // calculate the resume threshold, represented as resistor tap setting
+        // (check its conversion for energy / charges)
+        // (may need an overflow check for the latter part)
+        // atom_state[func_id].resume_thr = ((int)adc_r1 - (int)adc_r2 < 512) ? 20 : (uint8_t)((double)(adc_r1 - adc_r2) / 4095.0 * 32.0) + 17; 
+        atom_state[func_id].resume_thr = (adc_r1 > adc_r2) ? 
+            (uint8_t)((double)(adc_r1 - adc_r2) / 4095.0 * 32.0 + 17.0) : 
+            (uint8_t) 20; 
 
-        need_calibrate = 0;
+        atom_state[func_id].calibrated = 1;
     } 
-
-    check_fail = 0;
     // else {
     //     if (!check_fail)
     // }
+
+    atom_state[func_id].check_fail = 0;
+
+    CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_20;
+}
+
+// Port 5 interrupt service routine
+void __attribute__ ((__interrupt__(PORT5_VECTOR))) Port5_ISR(void) {
+    if (P5IFG & BIT5) { 
+        // if (__get_SR_register() & LPM4_bits) {
+        //     __bic_SR_register_on_exit(LPM4_bits);
+        // } else {
+        //     __bis_SR_register_on_exit(LPM4_bits | GIE);
+        // }
+        for (uint8_t i = 0; i < ATOM_FUNC_NUM; i++) 
+            atom_state[i].calibrated = 0;
+        P5IFG &= ~BIT5; // Clear interrupt flags
+    } 
 }

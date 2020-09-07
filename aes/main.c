@@ -34,37 +34,37 @@ unsigned char iv[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 
 
 
-// unsigned char input[2048] =
-//     "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo "
-//     "ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis "
-//     "dis parturient montes, nascetur ridiculus mus. Donec quam felis, "
-//     "ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa "
-//     "quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, "
-//     "arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. "
-//     "Nullam dictum felis eu pede mollis pretium. Integer tincidunt. Cras "
-//     "dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. "
-//     "Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. "
-//     "Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. "
-//     "Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean "
-//     "imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper "
-//     "ultricies nisi. Nam eget dui. Lorem ipsum dolor sit amet, consectetuer "
-//     "adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum "
-//     "sociis natoque penatibus et magnis dis parturient montes, nascetur "
-//     "ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium "
-//     "quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla "
-//     "vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, "
-//     "imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis "
-//     "pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. "
-//     "Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, "
-//     "consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, "
-//     "viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius "
-//     "laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel "
-//     "augue. Curabitur ullamcorper ultricies nisi. Nam eget dui. Lorem ipsum "
-//     "dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget "
-//     "dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis "
-//     "parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies "
-//     "nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. "
-//     "Donec pede justo";
+unsigned char input[2048] =
+    "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo "
+    "ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis "
+    "dis parturient montes, nascetur ridiculus mus. Donec quam felis, "
+    "ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa "
+    "quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, "
+    "arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. "
+    "Nullam dictum felis eu pede mollis pretium. Integer tincidunt. Cras "
+    "dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. "
+    "Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. "
+    "Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. "
+    "Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean "
+    "imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper "
+    "ultricies nisi. Nam eget dui. Lorem ipsum dolor sit amet, consectetuer "
+    "adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum "
+    "sociis natoque penatibus et magnis dis parturient montes, nascetur "
+    "ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium "
+    "quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla "
+    "vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, "
+    "imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis "
+    "pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. "
+    "Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, "
+    "consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, "
+    "viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius "
+    "laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel "
+    "augue. Curabitur ullamcorper ultricies nisi. Nam eget dui. Lorem ipsum "
+    "dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget "
+    "dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis "
+    "parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies "
+    "nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. "
+    "Donec pede justo";
 
 
 void gpio_init(void) {
@@ -96,15 +96,12 @@ void gpio_init(void) {
     // P5IES = BIT5 | BIT6;            // Falling edge
 
     /* Interrupts from S2 button */
-    // P5DIR &= ~BIT5;          // bit 5 input direction
-    // P5OUT |= BIT5;           // Pull-up resistor
-    // P5REN |= BIT5;           // Pull-up resistor enable
-    // P5IES = BIT5;            // Falling edge
-
-    // P5SEL0 = 0;
-    // P5SEL1 = 0;
-    // P5IFG = 0;               // Clear pending interrupts
-    // P5IE = BIT5;             // Enable restore irq
+    P5DIR &= ~BIT5;          // bit 5 input direction
+    P5OUT |= BIT5;           // Pull-up resistor
+    P5REN |= BIT5;           // Pull-up resistor enable
+    P5IES = BIT5;            // Falling edge
+    P5IFG = 0;               // Clear pending interrupts
+    P5IE = BIT5;             // Enable restore irq
 
     // Disable GPIO power-on default high-impedance mode
     PM5CTL0 &= ~LOCKLPM5;
@@ -125,54 +122,40 @@ int main(void) {
     comp_init();
 
     // __enable_interrupt();
-    __bis_SR_register(GIE);
+    // __bis_SR_register(GIE);
 
-    // __bis_SR_register(LPM4_bits);
+    P1OUT |= BIT4; // debug
+    __bis_SR_register(LPM4_bits | GIE);
     
     for (;;) {
+        // ******* Timer ******
         // P1OUT |= BIT0;
         // TA0CTL |= MC__UP;
         // __bis_SR_register(LPM0_bits);
         // P1OUT &= ~BIT0;
 
+
+        // ******* AESA module test ******
         // P1OUT |= BIT0;
-        aes_128_enc(plaintext2, ciphertext2, key, iv, 2);
-        aes_128_dec(ciphertext2, deciphertext2, key, iv, 2);
+        // aes_128_enc(key, iv, plaintext2, ciphertext2, 2);
+        // aes_128_dec(key, iv, ciphertext2, deciphertext2, 2);
         // aes_128_enc(key, plaintext, ciphertext, iv, 1);
-        // aes_128_enc(key, input, input, 128); // 128 might not work
-        // aes_128_enc(key, input, input, 64);
-        // aes_128_enc(key, input+0x100, input+0x100, 32);
-        // aes_128_enc(key, input, input, iv, 32);
-        // aes_128_enc(key, input, input, 16);
-        // aes_128_enc(key, input, input, 8);
-        // aes_128_enc(key, input, input, 4);
-        // aes_128_enc(key, input, input, 2);
+        aes_128_enc(key, iv, input, input, 32);
         // P1OUT &= ~BIT0;
 
+
+
+        // ******* ADC reading test ******
+        // P1OUT |= BIT0;
         // ADC12CTL0 |= ADC12ENC | ADC12SC;    // Start sampling/conversion
         // __bis_SR_register(LPM0_bits);
-
-        // TA0CTL |= MC__UP;
-        // __bis_SR_register(LPM0_bits);
+        // P1OUT &= ~BIT0;
         
         // __bis_SR_register(LPM4_bits | GIE);
     }
 
     return 0;
 }
-
-
-// Port 5 interrupt service routine
-// void __attribute__ ((__interrupt__(PORT5_VECTOR))) Port5_ISR(void) {
-//     if (P5IFG & BIT5) { 
-//         if (__get_SR_register() & LPM4_bits) {
-//             __bic_SR_register_on_exit(LPM4_bits);
-//         } else {
-//             __bis_SR_register_on_exit(LPM4_bits | GIE);
-//         }
-//         P5IFG &= ~BIT5; // Clear interrupt flags
-//     } 
-// }
 
 // Timer0_A0 interrupt service routine
 void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_ISR (void) {
