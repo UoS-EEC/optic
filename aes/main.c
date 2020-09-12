@@ -139,8 +139,8 @@ int main(void) {
         // P1OUT |= BIT0;
         // aes_128_enc(key, iv, plaintext2, ciphertext2, 2);
         // aes_128_dec(key, iv, ciphertext2, deciphertext2, 2);
-        // aes_128_enc(key, plaintext, ciphertext, iv, 1);
         aes_128_enc(key, iv, input, input, 32);
+        aes_128_dec(key, iv, input, input, 48);
         // P1OUT &= ~BIT0;
 
 

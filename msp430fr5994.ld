@@ -254,6 +254,7 @@ SECTIONS
   /* This section contains data that is not initialised during load
      or application reset. */
   .persistent :
+  /* .persistent (NOLOAD) : */
   {
     . = ALIGN(2);
     PROVIDE (__persistent_start = .);

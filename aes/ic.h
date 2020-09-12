@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 
-#define PERSISTENT __attribute__((section(".persistent")))
-
 void adc12_init(void);
 void comp_init(void);
 void atom_func_start(uint8_t func_id);
