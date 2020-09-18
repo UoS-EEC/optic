@@ -38,6 +38,9 @@
 OUTPUT_ARCH(msp430)
 ENTRY(_start)
 
+__stack_size = 0x200;
+__boot_stack_size = 0x80;
+
 MEMORY {
   TINYRAM          : ORIGIN = 0xA, LENGTH = 0x0016
   BSL              : ORIGIN = 0x1000, LENGTH = 0x0800
@@ -254,7 +257,6 @@ SECTIONS
   /* This section contains data that is not initialised during load
      or application reset. */
   .persistent :
-  /* .persistent (NOLOAD) : */
   {
     . = ALIGN(2);
     PROVIDE (__persistent_start = .);
@@ -333,6 +335,14 @@ SECTIONS
   __rom_highdatacopysize = SIZEOF(.upper.data) - 2;
   __rom_highdatastart = LOADADDR(.upper.data) + 2;
 
+  /* Boot stack */
+  .boot_stack (NOLOAD) : 
+  {
+    PROVIDE (__bootstack = .);
+    . += __boot_stack_size;
+    PROVIDE (__bootstackend = .);
+  } > RAM
+
   .lower.bss :
   {
     . = ALIGN(2);
@@ -340,7 +350,7 @@ SECTIONS
     *(.lower.bss.* .lower.bss)
   } > RAM
 
-  .bss :
+  .bss (NOLOAD) :
   {
     . = ALIGN(2);
     PROVIDE (__bssstart = .);
@@ -382,6 +392,18 @@ SECTIONS
   } > HIFRAM
   __high_bsssize = SIZEOF(.upper.bss);
 
+  .ramtext :
+  {
+    . = ALIGN(2);
+    PROVIDE (__ramtext_low = .);
+    *(.ramtext .ramtext.*)
+    . = ALIGN(2);
+    PROVIDE (__ramtext_high = .);
+  } > RAM AT> FRAM
+
+  PROVIDE(__ramtext_loadLow = LOADADDR(.ramtext));
+  PROVIDE(__ramtext_loadHigh = LOADADDR(.ramtext) + SIZEOF(.ramtext));
+
   /* We create this section so that "end" will always be in the
      RAM region (matching .stack below), even if the .bss
      section is empty.  */
@@ -404,10 +426,12 @@ SECTIONS
   /* WARNING: Do not place anything in RAM here.
      The heap section must be the last section in RAM and the stack
      section must be placed at the very end of the RAM region.  */
-  .stack (ORIGIN (RAM) + LENGTH(RAM)) :
+  .stack (ORIGIN (RAM) + LENGTH(RAM) - __stack_size) :
   {
     PROVIDE (__stack = .);
     *(.stack)
+    . += __stack_size;
+    PROVIDE (__stackend = .);
   }
 
   .lower.text :

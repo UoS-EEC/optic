@@ -12,19 +12,124 @@ typedef struct AtomFuncState_s {
 
 AtomFuncState atom_state[ATOM_FUNC_NUM] PERSISTENT;
 
-// uint8_t need_calibrate PERSISTENT = 1;
-// uint8_t check_fail PERSISTENT;
-// uint8_t resume_threshold PERSISTENT = 20; // resistor tap setting for VREF0, init 21/32, 2.625V
-// uint8_t backup_threshold PERSISTENT = 16; // resistor tap setting for VREF1, init 17/32, 2.125V
-
-
 uint16_t adc_r1;
 uint16_t adc_r2;
 uint16_t adc_reading;
 
+extern uint8_t __datastart, __dataend, __romdatastart, __romdatacopysize;
+extern uint8_t __bootstackend;
+extern uint8_t __bssstart, __bssend;
+extern uint8_t __ramtext_low, __ramtext_high, __ramtext_loadLow;
+extern uint8_t __stack, __stackend;
+
+static void gpio_init(void);
+static void adc12_init(void);
+static void comp_init(void);
+
+void __attribute__((section(".ramtext"), naked))
+fastmemcpy(uint8_t *dst, uint8_t *src, size_t len) {
+  __asm__(" push r5\n"
+          " tst r14\n" // Test for len=0
+          " jz return\n"
+          " mov #2, r5\n"   // r5 = word size
+          " xor r15, r15\n" // Clear r15
+          " mov r14, r15\n" // r15=len
+          " and #1, r15\n"  // r15 = len%2
+          " sub r15, r14\n" // r14 = len - len%2
+          "loopmemcpy:  \n"
+          " mov.w @r13+, @r12\n"
+          " add r5, r12 \n"
+          " sub r5, r14 \n"
+          " jnz loopmemcpy \n"
+          " tst r15\n"
+          " jz return\n"
+          " mov.b @r13, @r12\n" // move last byte
+          "return:\n"
+          " pop r5\n"
+          " ret\n");
+}
 
 
-void adc12_init(void) {
+void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0")))
+iclib_boot() {
+    WDTCTL = WDTPW | WDTHOLD;              // Stop watchdog timer
+    __set_SP_register(&__bootstackend); // Boot stack
+    __bic_SR_register(GIE);                // Disable interrupts during startup
+
+    // Boot functions that are mapped to ram (most importantly fastmemcpy)
+    uint8_t *dst = &__ramtext_low;
+    uint8_t *src = &__ramtext_loadLow;
+    size_t len = &__ramtext_high - &__ramtext_low;
+    while (len--) {
+        *dst++ = *src++;
+    }
+
+    // clock_init();
+    gpio_init();
+    adc12_init();
+    comp_init();
+
+    // needRestore = 1;                    // Indicate powerup
+    P1OUT |= BIT4; // debug
+    __bis_SR_register(LPM4_bits + GIE); // Enter LPM4 with interrupts enabled
+    // Processor sleeps
+    // ...
+    // Processor wakes up after interrupt
+    // *!Remaining code in this function is only executed during the first
+    // boot!*
+
+    // First time boot: Set SP, load data and initialize LRU
+
+    __set_SP_register(&__stackend); // Runtime stack
+
+    // load .data to RAM
+    fastmemcpy(&__datastart, &__romdatastart, __romdatacopysize);
+
+    int main(); // Suppress implicit decl. warning
+    main();
+}
+
+static void gpio_init(void) {
+    // Need to initialize all ports/pins to reduce power consump'n
+    P1OUT = 0; 
+    P1DIR = 0xff;
+    P2OUT = 0;
+    P2DIR = 0xff;
+    P3OUT = 0;
+    P3DIR = 0xff;
+    P4OUT = 0; 
+    P4DIR = 0xff;
+    P7OUT = 0;
+    P7DIR = 0xff;
+    P8OUT = 0;
+    P8DIR = 0xff;
+
+    /* Keep-alive signal to external comparator */
+    // P6OUT = BIT0;    // resistor enable
+    // P6REN = BIT0;    // Pull-up mode
+    // P6DIR = ~(BIT0); // All but 0 to output
+    // P6OUT = BIT0;
+    // P6DIR = 0xff;
+
+    /* Interrupts from S1 and S2 buttons */
+    // P5DIR &= ~(BIT5 | BIT6);        // All but 5,6 to output direction
+    // P5OUT |= BIT5 | BIT6;           // Pull-up resistor
+    // P5REN |= BIT5 | BIT6;           // Pull-up mode
+    // P5IES = BIT5 | BIT6;            // Falling edge
+
+    /* Interrupts from S2 button */
+    // P5DIR &= ~BIT5;          // bit 5 input direction
+    // P5OUT |= BIT5;           // Pull-up resistor
+    // P5REN |= BIT5;           // Pull-up resistor enable
+    // P5IES = BIT5;            // Falling edge
+    // P5IFG = 0;               // Clear pending interrupts
+    // P5IE = BIT5;             // Enable restore irq
+
+    // Disable GPIO power-on default high-impedance mode
+    PM5CTL0 &= ~LOCKLPM5;
+}
+
+static void adc12_init(void) {
     // Configure ADC12
     REFCTL0 |= REFVSEL_1;                   // 2.0 V reference selected, comment this to use 1.2V
 
@@ -98,7 +203,7 @@ void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12_ISR (void) {
     }
 }
 
-void comp_init(void) {
+static void comp_init(void) {
     P1DIR  |= BIT2;                 // P1.2 COUT output direction
     P1SEL1 |= BIT2;                 // Select COUT function on P1.2/COUT
 
@@ -252,15 +357,15 @@ void atom_func_end(uint8_t func_id) {
 }
 
 // Port 5 interrupt service routine
-void __attribute__ ((__interrupt__(PORT5_VECTOR))) Port5_ISR(void) {
-    if (P5IFG & BIT5) { 
-        // if (__get_SR_register() & LPM4_bits) {
-        //     __bic_SR_register_on_exit(LPM4_bits);
-        // } else {
-        //     __bis_SR_register_on_exit(LPM4_bits | GIE);
-        // }
-        for (uint8_t i = 0; i < ATOM_FUNC_NUM; i++) 
-            atom_state[i].calibrated = 0;
-        P5IFG &= ~BIT5; // Clear interrupt flags
-    } 
-}
+// void __attribute__ ((__interrupt__(PORT5_VECTOR))) Port5_ISR(void) {
+//     if (P5IFG & BIT5) { 
+//         // if (__get_SR_register() & LPM4_bits) {
+//         //     __bic_SR_register_on_exit(LPM4_bits);
+//         // } else {
+//         //     __bis_SR_register_on_exit(LPM4_bits | GIE);
+//         // }
+//         for (uint8_t i = 0; i < ATOM_FUNC_NUM; i++) 
+//             atom_state[i].calibrated = 0;
+//         P5IFG &= ~BIT5; // Clear interrupt flags
+//     } 
+// }

@@ -25,9 +25,10 @@ target_compile_options(
     # PRIVATE -mcpu=msp430
     PRIVATE -mmcu=${DEVICE} 
     # PRIVATE -O2
+    PRIVATE -msmall
     PRIVATE -g 
-    PRIVATE -mhwmult=none
-    # PRIVATE -mhwmult=f5series
+    # PRIVATE -mhwmult=none
+    PRIVATE -mhwmult=f5series
     # PRIVATE -fno-common
     PRIVATE -Wall
     PRIVATE -fno-zero-initialized-in-bss # We don't want to zero out whole bss on every boot
@@ -45,6 +46,9 @@ target_link_options(
     # PRIVATE -T ${MSP430_GCC_DIR}/include/${DEVICE}.ld
     PRIVATE -T ${CMAKE_CURRENT_LIST_DIR}/../${DEVICE}.ld
     PRIVATE -T ${MSP430_GCC_DIR}/include/${DEVICE}_symbols.ld
+    # PRIVATE -nostdlib
+    # PRIVATE -ffreestanding
+    PRIVATE -nostartfiles
 )
 
 add_upload(${TARGET_NAME})

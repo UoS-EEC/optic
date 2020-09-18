@@ -67,45 +67,7 @@ unsigned char input[2048] =
     "Donec pede justo";
 
 
-void gpio_init(void) {
-    // Need to initialize all ports/pins to reduce power consump'n
-    P1OUT = 0; 
-    P1DIR = 0xff;
-    P2OUT = 0;
-    P2DIR = 0xff;
-    P3OUT = 0;
-    P3DIR = 0xff;
-    P4OUT = 0; 
-    P4DIR = 0xff;
-    P7OUT = 0;
-    P7DIR = 0xff;
-    P8OUT = 0;
-    P8DIR = 0xff;
 
-    /* Keep-alive signal to external comparator */
-    // P6OUT = BIT0;    // resistor enable
-    // P6REN = BIT0;    // Pull-up mode
-    // P6DIR = ~(BIT0); // All but 0 to output
-    // P6OUT = BIT0;
-    // P6DIR = 0xff;
-
-    /* Interrupts from S1 and S2 buttons */
-    // P5DIR &= ~(BIT5 | BIT6);        // All but 5,6 to output direction
-    // P5OUT |= BIT5 | BIT6;           // Pull-up resistor
-    // P5REN |= BIT5 | BIT6;           // Pull-up mode
-    // P5IES = BIT5 | BIT6;            // Falling edge
-
-    /* Interrupts from S2 button */
-    P5DIR &= ~BIT5;          // bit 5 input direction
-    P5OUT |= BIT5;           // Pull-up resistor
-    P5REN |= BIT5;           // Pull-up resistor enable
-    P5IES = BIT5;            // Falling edge
-    P5IFG = 0;               // Clear pending interrupts
-    P5IE = BIT5;             // Enable restore irq
-
-    // Disable GPIO power-on default high-impedance mode
-    PM5CTL0 &= ~LOCKLPM5;
-}
 
 void timer_init(void) {
     TA0CCTL0 = CCIE;                // TACCR0 interrupt enabled
@@ -114,18 +76,13 @@ void timer_init(void) {
 }
 
 int main(void) {
-    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
-
-    gpio_init();
     // timer_init();
-    adc12_init(); 
-    comp_init();
 
     // __enable_interrupt();
     // __bis_SR_register(GIE);
 
-    P1OUT |= BIT4; // debug
-    __bis_SR_register(LPM4_bits | GIE);
+    // P1OUT |= BIT4; // debug
+    // __bis_SR_register(LPM4_bits | GIE);
     
     for (;;) {
         // ******* Timer ******
