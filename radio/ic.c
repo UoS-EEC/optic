@@ -1,8 +1,6 @@
 #include <msp430fr5994.h>
 #include "ic.h"
 
-// #define DEBS
-
 #define PERSISTENT __attribute__((section(".persistent")))
 
 typedef struct AtomFuncState_s {
@@ -18,7 +16,7 @@ uint16_t adc_r1;
 uint16_t adc_r2;
 uint16_t adc_reading;
 
-extern uint8_t __datastart, __dataend, __romdatastart; // , __romdatacopysize;
+extern uint8_t __datastart, __dataend, __romdatastart; //, __romdatacopysize;
 extern uint8_t __bootstackend;
 extern uint8_t __bssstart, __bssend;
 extern uint8_t __ramtext_low, __ramtext_high, __ramtext_loadLow;
@@ -58,13 +56,6 @@ iclib_boot() {
     __set_SP_register(&__bootstackend); // Boot stack
     __bic_SR_register(GIE);                // Disable interrupts during startup
 
-    // Boot functions that are mapped to ram (most importantly fastmemcpy)
-    uint8_t *dst = &__ramtext_low;
-    uint8_t *src = &__ramtext_loadLow;
-    size_t len = &__ramtext_high - &__ramtext_low;
-    while (len--) {
-        *dst++ = *src++;
-    }
 
     // clock_init();
     gpio_init();
@@ -82,8 +73,16 @@ iclib_boot() {
 
     // First time boot: Set SP, load data and initialize LRU
 
-    __set_SP_register(&__stackend); // Runtime stack
+    // Boot functions that are mapped to ram (most importantly fastmemcpy)
+    uint8_t *dst = &__ramtext_low;
+    uint8_t *src = &__ramtext_loadLow;
+    size_t len = &__ramtext_high - &__ramtext_low;
+    while (len--) {
+        *dst++ = *src++;
+    }
 
+    __set_SP_register(&__stackend); // Runtime stack
+    
     // load .data to RAM
     fastmemcpy(&__datastart, &__romdatastart, &__dataend - &__datastart);
 
@@ -227,8 +226,8 @@ static void comp_init(void) {
              CERSEL   |             // to -terminal
             //  CEREF0_20|             // 2.625 V
             //  CEREF1_16;             // 2.125 V   
-             CEREF0_16|             // 2.25 V
-             CEREF1_14;             // 1.875 V   
+             CEREF0_17|             // 2.25 V
+             CEREF1_15;             // 2.0 V   
 
     P3SEL1 |= BIT0;                 // P3.0 C12 for Vcompare
     P3SEL0 |= BIT0;
@@ -273,8 +272,6 @@ void __attribute__ ((interrupt(COMP_E_VECTOR))) Comp_ISR (void) {
 }
 
 void atom_func_start(uint8_t func_id) {
-
-#ifndef DEBS
     if (atom_state[func_id].check_fail)
         atom_state[func_id].calibrated = 0;
     
@@ -306,6 +303,9 @@ void atom_func_start(uint8_t func_id) {
 
         // CEINT |= CEIIE;
         // CECTL1 &= ~CEMRVS;
+        
+        // disable interrupts
+        // __bic_SR_register(GIE);
 
         // calibrate
         // adc sampling takes 145 us
@@ -320,25 +320,15 @@ void atom_func_start(uint8_t func_id) {
     }
 
     atom_state[func_id].check_fail = 1; // this is reset at the end of atomic function; if failed, this is still set on reboots
-#else 
-    CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_16;
-    CECTL1 &= ~CEMRVL;
-    __no_operation(); // sleep here if voltage is not high enough
-#endif
-    // disable interrupts
-    // __bic_SR_register(GIE);
-    CEINT &= (~CEIE) & (~CEIIE);
+
+    CECTL1 &= ~CEON;
     P1OUT |= BIT5; // debug, indicate function starts
 }
 
 void atom_func_end(uint8_t func_id) {
-    // enable interrupts again
     P1OUT &= ~BIT5; // debug, indicate function ends
-    // __bis_SR_register(GIE);
-    CEINT |= CEIE | CEIIE;
-    // CECTL1 |= CEON;
-    
-#ifndef DEBS
+    CECTL1 |= CEON;
+
     if (!atom_state[func_id].calibrated) { 
         // end of a calibration
         // measure end voltage
@@ -357,7 +347,7 @@ void atom_func_end(uint8_t func_id) {
         // (may need an overflow check for the latter part)
         // atom_state[func_id].resume_thr = ((int)adc_r1 - (int)adc_r2 < 512) ? 20 : (uint8_t)((double)(adc_r1 - adc_r2) / 4095.0 * 32.0) + 17; 
         atom_state[func_id].resume_thr = (adc_r1 > adc_r2) ? 
-            (uint8_t)((double)(adc_r1 - adc_r2) / 4095.0 * 32.0 + 14.0) : 
+            (uint8_t)((double)(adc_r1 - adc_r2) / 4095.0 * 32.0 + 15.0) : 
             (uint8_t) 17; 
 
         atom_state[func_id].calibrated = 1;
@@ -367,12 +357,8 @@ void atom_func_end(uint8_t func_id) {
     // }
 
     atom_state[func_id].check_fail = 0;
-#else
 
-#endif 
-
-
-    CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_16;
+    CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_17;
 }
 
 // Port 5 interrupt service routine

@@ -11,3 +11,4 @@ project(IC-Atomic)
 enable_language(C ASM)
 
 add_subdirectory(aes)
+add_subdirectory(radio)
