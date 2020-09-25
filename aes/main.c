@@ -77,12 +77,6 @@ void timer_init(void) {
 
 int main(void) {
     // timer_init();
-
-    // __enable_interrupt();
-    // __bis_SR_register(GIE);
-
-    // P1OUT |= BIT4; // debug
-    // __bis_SR_register(LPM4_bits | GIE);
     
     for (;;) {
         // ******* Timer ******
@@ -96,8 +90,8 @@ int main(void) {
         // P1OUT |= BIT0;
         // aes_128_enc(key, iv, plaintext2, ciphertext2, 2);
         // aes_128_dec(key, iv, ciphertext2, deciphertext2, 2);
-        aes_128_enc(key, iv, input, input, 127);
-        aes_128_dec(key, iv, input, input, 127);
+        aes_128_enc(key, iv, input, input, 128);
+        // aes_128_dec(key, iv, input, input, 128);
         // P1OUT &= ~BIT0;
 
 

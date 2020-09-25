@@ -7,3 +7,13 @@ Blocks       Runtime (ms)
 16           4.301
 32           8.007
 64           15.43
+
+
+127 Enc 25.98 ms  
+voltage drop:
+10 uF, no additional cap: 3.232 - 2.501 = 0.731 V, 2.966 - 2.158 = 0.808 V
+
+
+127 Dec 27.88 ms
+voltage drop
+10 uF, no additional cap: 3.242 - 2.444 = 0.798 V, 2.987 - 2.189 = 0.798 V

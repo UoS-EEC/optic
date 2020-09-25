@@ -133,7 +133,7 @@ static void gpio_init(void) {
 
 static void adc12_init(void) {
     // Configure ADC12
-    REFCTL0 |= REFVSEL_1;                   // 2.0 V reference selected, comment this to use 1.2V
+    // REFCTL0 |= REFVSEL_1;                   // 2.0 V reference selected, comment this to use 1.2V
 
     ADC12CTL0 = ADC12SHT0_2 |               // 16 cycles sample and hold time
                 ADC12ON     ;               // ADC12 on
@@ -142,15 +142,15 @@ static void adc12_init(void) {
     // ADC12CTL2 = ADC12RES_2;                // Default: 12-bit conversion results, 14 cycles conversion time
 
     // Use battery monitor (1/2 AVcc)    
-    ADC12CTL3 = ADC12BATMAP;                // 1/2AVcc channel selected for ADC ch A31
-    ADC12MCTL0 = ADC12INCH_31 |
-                 ADC12VRSEL_1 ;             // VR+ = VREF buffered, VR- = Vss
+    // ADC12CTL3 = ADC12BATMAP;                // 1/2AVcc channel selected for ADC ch A31
+    // ADC12MCTL0 = ADC12INCH_31 |
+    //              ADC12VRSEL_1 ;             // VR+ = VREF buffered, VR- = Vss
 
     // Use P1.2
-    // P1SEL1 |= BIT2;                         // Configure P1.2 for ADC
-    // P1SEL0 |= BIT2;
-    // ADC12MCTL0 = ADC12INCH_2  |             // Select ch A2 at P1.2
-    //              ADC12VRSEL_1 ;             // VR+ = VREF buffered, VR- = Vss
+    P1SEL1 |= BIT2;                         // Configure P1.2 for ADC
+    P1SEL0 |= BIT2;
+    ADC12MCTL0 = ADC12INCH_2  |             // Select ch A2 at P1.2
+                 ADC12VRSEL_1 ;             // VR+ = VREF buffered, VR- = Vss
 
     ADC12IER0 = ADC12IE0;                   // Enable ADC conv complete interrupt
 }
@@ -206,8 +206,8 @@ void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12_ISR (void) {
 }
 
 static void comp_init(void) {
-    P1DIR  |= BIT2;                 // P1.2 COUT output direction
-    P1SEL1 |= BIT2;                 // Select COUT function on P1.2/COUT
+    // P1DIR  |= BIT2;                 // P1.2 COUT output direction
+    // P1SEL1 |= BIT2;                 // Select COUT function on P1.2/COUT
 
     // Setup Comparator_E
     CECTL0 = CEIPEN | CEIPSEL_12;   // Enable V+, input channel C12
@@ -216,19 +216,19 @@ static void comp_init(void) {
     // CECTL1 = CEPWRMD_1|             // Normal power mode
     //          CEF      |
     //          CEFDLY_3 ;
-    CECTL1 = CEMRVS   |             // CMRVL selects the refV - VREF0
+    CECTL1 = CEMRVS   |             // CMRVL selects the Vref - default VREF0
              CEPWRMD_2|             // 1 for Normal power mode / 2 for Ultra-low power mode
              CEF      |             // Output filter enabled            
              CEFDLY_3 ;             // Output filter delay 3600 ns
     // CEMRVL = 0 by default, select VREF0
                                             
-    CECTL2 = CEREFL_2 |             // VREF 2.0 V is selected
+    CECTL2 = CEREFL_1 |             // VREF 1.2 V is selected
              CERS_2   |             // VREF applied to R-ladder
              CERSEL   |             // to -terminal
             //  CEREF0_20|             // 2.625 V
             //  CEREF1_16;             // 2.125 V   
-             CEREF0_16|             // 2.25 V
-             CEREF1_14;             // 1.875 V   
+             CEREF0_17|             // 2.025 V
+             CEREF1_16;             // 1.9125 V   
 
     P3SEL1 |= BIT0;                 // P3.0 C12 for Vcompare
     P3SEL0 |= BIT0;
@@ -250,17 +250,13 @@ void __attribute__ ((interrupt(COMP_E_VECTOR))) Comp_ISR (void) {
     switch(__even_in_range(CEIV, CEIV_CERDYIFG)) {
         case CEIV_NONE: break;
         case CEIV_CEIFG:
-            // CEINT &= ~CEIE;
-            // CEINT |= CEIIE;
-            // CEINT &= ~CEIFG;
-            CEINT = (CEINT & ~CEIFG & ~CEIE) | CEIIE;
+            CEINT = (CEINT & ~CEIFG & ~CEIE & ~CEIIFG) | CEIIE;
             CECTL1 |= CEMRVL;
             __bic_SR_register_on_exit(LPM4_bits);
             P1OUT &= ~BIT4; // debug
             break;
         case CEIV_CEIIFG:
-            // CEINT &= ~CEIIFG;
-            CEINT = (CEINT & ~CEIIFG & ~CEIIE) | CEIE;
+            CEINT = (CEINT & ~CEIIFG & ~CEIIE & ~CEIFG) | CEIE;
             CECTL1 &= ~CEMRVL;
             __bis_SR_register_on_exit(LPM4_bits | GIE);
             P1OUT |= BIT4; // debug
@@ -275,37 +271,38 @@ void __attribute__ ((interrupt(COMP_E_VECTOR))) Comp_ISR (void) {
 void atom_func_start(uint8_t func_id) {
 
 #ifndef DEBS
-    if (atom_state[func_id].check_fail)
+    if (atom_state[func_id].check_fail) {
         atom_state[func_id].calibrated = 0;
+        P1OUT |= BIT0;
+        __delay_cycles(0xF);
+        P1OUT &= ~BIT0;
+    }    
     
     if (atom_state[func_id].calibrated) { 
         // don't need calibration
         // set comparator to the previously calibrated threshold
-        CECTL2 = (CECTL2 & ~CEREF0) | (CEREF0 & (uint16_t) atom_state[func_id].resume_thr);
-        
-        // CECTL1 |= CEMRVS;
-        // CEINT &= ~CEIIE;
+        CECTL2 = (CECTL2 & ~CEREF0) | (CEREF0 & ((uint16_t) atom_state[func_id].resume_thr));
 
+        // CEINT |= CEIIE; // should have been set, just in case
         CECTL1 &= ~CEMRVL;
-        __no_operation(); // sleep here if voltage is not high enough
+        __no_operation(); // sleep here if voltage is not high enough...
 
-        // CEINT |= CEIIE;
-        // CECTL1 &= ~CEMRVS;
-        
+        // CECTL1 |= CEMRVL; // turn to VREF1 anyway, if voltage is already high enough
+        CEINT &= ~CEIIE;
     } else { 
         // need calibration
         // wait for the highest voltage, assumed to be 3.5 V
         // CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_27; // set VREF0 = 28/32 * Vref = 3.5V, Vref = 4V (2V Vref / 1/2 input divider)
-        CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_25; // set VREF0 = 26/32 * Vref = 3.25 V
-        
-        // CECTL1 |= CEMRVS;
-        // CEINT &= ~CEIIE;
+        // CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_25; // set VREF0 = 26/32 * Vref = 3.25 V
+        // CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_23; // set VREF0 = 24/32 * Vref = 3.0 V
+        CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_26; // set VREF0 = 27/32 * 3.6 = 3.0375 V
 
+        // CEINT |= CEIIE; // should have been set, just in case
         CECTL1 &= ~CEMRVL;
-        __no_operation(); // sleep here if voltage is not high enough
+        __no_operation(); // sleep here if voltage is not high enough...
 
-        // CEINT |= CEIIE;
-        // CECTL1 &= ~CEMRVS;
+        // CECTL1 |= CEMRVL; // turn to VREF1 anyway, if voltage is already high enough
+        CEINT &= ~CEIIE;
 
         // calibrate
         // adc sampling takes 145 us
@@ -316,34 +313,41 @@ void atom_func_start(uint8_t func_id) {
         P1OUT &= ~BIT5; // debug
 
         P1OUT |= BIT3; // short-circuit the supply
-        P1OUT |= BIT0; // debug
     }
 
     atom_state[func_id].check_fail = 1; // this is reset at the end of atomic function; if failed, this is still set on reboots
 #else 
-    CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_16;
+    if (atom_state[func_id].check_fail) {
+        P1OUT |= BIT0;
+        __delay_cycles(0xF);
+        P1OUT &= ~BIT0;
+    }    
+    CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_18;
     CECTL1 &= ~CEMRVL;
     __no_operation(); // sleep here if voltage is not high enough
+
+    CEINT &= ~CEIIE;
+    CECTL1 |= CEMRVL;
+
+    atom_state[func_id].check_fail = 1;
 #endif
     // disable interrupts
     // __bic_SR_register(GIE);
-    CEINT &= (~CEIE) & (~CEIIE);
+    // CEINT &= ~CEIIE;
+    // CECTL1 |= CEMRVL; // turn to VREF1 anyway, in case 
     P1OUT |= BIT5; // debug, indicate function starts
 }
 
 void atom_func_end(uint8_t func_id) {
-    // enable interrupts again
     P1OUT &= ~BIT5; // debug, indicate function ends
-    // __bis_SR_register(GIE);
-    CEINT |= CEIE | CEIIE;
-    // CECTL1 |= CEON;
+    // enable interrupts again
+    // CEINT |= CEIIE;
     
 #ifndef DEBS
     if (!atom_state[func_id].calibrated) { 
         // end of a calibration
         // measure end voltage
         P1OUT &= ~BIT3; // reconnect the supply
-        P1OUT &= ~BIT0; // debug
 
         P1OUT |= BIT5; // debug
         ADC12CTL0 |= ADC12ENC | ADC12SC;    // Start sampling/conversion
@@ -353,12 +357,16 @@ void atom_func_end(uint8_t func_id) {
     
         
         // calculate the resume threshold, represented as resistor tap setting
-        // (check its conversion for energy / charges)
         // (may need an overflow check for the latter part)
         // atom_state[func_id].resume_thr = ((int)adc_r1 - (int)adc_r2 < 512) ? 20 : (uint8_t)((double)(adc_r1 - adc_r2) / 4095.0 * 32.0) + 17; 
-        atom_state[func_id].resume_thr = (adc_r1 > adc_r2) ? 
-            (uint8_t)((double)(adc_r1 - adc_r2) / 4095.0 * 32.0 + 14.0) : 
-            (uint8_t) 17; 
+        if (adc_r1 > adc_r2) {
+            atom_state[func_id].resume_thr = (uint8_t)((double)(adc_r1 - adc_r2) / 4095.0 * 32.0 + 15.0);
+        } else {
+            atom_state[func_id].resume_thr = (uint8_t) 17;
+        }
+        // atom_state[func_id].resume_thr = (adc_r1 > adc_r2) ? 
+        //     (uint8_t)((double)(adc_r1 - adc_r2) / 4095.0 * 32.0 + 14.0) : 
+        //     (uint8_t) 17; 
 
         atom_state[func_id].calibrated = 1;
     } 
@@ -368,11 +376,11 @@ void atom_func_end(uint8_t func_id) {
 
     atom_state[func_id].check_fail = 0;
 #else
-
+    atom_state[func_id].check_fail = 0;
 #endif 
 
-
-    CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_16;
+    // CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_17;
+    CEINT |= CEIIE;
 }
 
 // Port 5 interrupt service routine
