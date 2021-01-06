@@ -16,7 +16,7 @@
 
 #include "ic.h"
 
-// #define ASSERT
+#define ASSERT
 
 /* ------ Types -------------------------------------------------------------*/
 struct nrfReadResult {
@@ -113,13 +113,12 @@ static void nrf24Command(struct nrfReadResult* res, const uint8_t address,
 // }
 
 #ifdef ASSERT
-void indicate_test_fail() { P1OUT |= BIT2; }
+void indicate_test_fail() { P1OUT |= BIT1 | BIT2; }
 
 void assert(bool c) {
   if (!c) {
     indicate_test_fail();
-    while (1)
-      ;  // Stall
+    while (1);  // Stall
   }
 }
 #endif
@@ -210,11 +209,17 @@ int main(void) {
   // assert(result.status == 0b00001110);    // STATUS should be 0b00001110
   // assert(result.response == 0b00001010);  // CONFIG should be 0b00001010
   for (;;) {
-    atom_func_start(RADIO);
+    // atom_func_start(RADIO);
 
     /* ------ Test: Standby-I -> Tx Mode -> Standy-I ------ */
     // Clear power-up data sent flag
-    nrf24Command(&result, RF24_STATUS, RF24_TX_DS | 0x0E);
+    // nrf24Command(&result, RF24_STATUS, RF24_TX_DS | 0x0E);
+    nrf24Command(&result, RF24_STATUS, RF24_TX_DS);
+
+    // Flush TX FIFO
+    GPIO_setOutputLowOnPin(GPIO_PORT_P3, GPIO_PIN5);
+    spiTransaction(RF24_FLUSH_TX);
+    GPIO_setOutputHighOnPin(GPIO_PORT_P3, GPIO_PIN5);
 
     // Power up
     nrf24Command(&result, RF24_CONFIG, RF24_EN_CRC | RF24_PWR_UP);
@@ -246,13 +251,13 @@ int main(void) {
     // Write payload to Tx Fifo
     nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
     nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
-    nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
-    nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
-    nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
-    nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
-    nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
-    nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
-    nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
+    // nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
+    // nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
+    // nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
+    // nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
+    // nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
+    // nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
+    // nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
 #ifdef ASSERT
     assert(result.status == 0b00001110);
     assert(result.response == 0);
@@ -267,9 +272,12 @@ int main(void) {
     // Preamble 1 byte, Address 5 byte, Payload 1 byte, CRC 1 byte
     // 8 bytes * 8 bits/byte @ 1 Mbps = 64 us
 
-    atom_func_end(RADIO);
+    // atom_func_end(RADIO);
 
-    __delay_cycles(800);  // 100us
+    // P1OUT |= BIT0;
+    // __delay_cycles(400000);  // 0.5s
+    // P1OUT &= ~BIT0;
+    __delay_cycles(400000);  // 0.5s
   }
   
 

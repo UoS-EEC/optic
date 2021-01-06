@@ -18,9 +18,8 @@ set(CMAKE_CXX_COMPILER_WORKS 1 CACHE INTERNAL "")
 
 set(CMAKE_BUILD_TYPE Debug CACHE STRING "Debug type by default")
 
-
 function(add_upload EXECUTABLE)
   add_custom_target(upload_${EXECUTABLE}
-    COMMAND ${MSPDEBUG} tilib -v 3300 -d usbmodem1441401 "prog ${EXECUTABLE}.elf"
+    COMMAND ${MSPDEBUG} tilib -v 3300 -d ${USB_PORT} "prog ${EXECUTABLE}.elf"
     DEPENDS ${EXECUTABLE})
 endfunction(add_upload)

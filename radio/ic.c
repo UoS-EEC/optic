@@ -59,12 +59,12 @@ iclib_boot() {
 
     // clock_init();
     gpio_init();
-    adc12_init();
-    comp_init();
+    // adc12_init();
+    // comp_init();
 
     // needRestore = 1;                    // Indicate powerup
-    P1OUT |= BIT4; // debug
-    __bis_SR_register(LPM4_bits + GIE); // Enter LPM4 with interrupts enabled
+    // P1OUT |= BIT4; // debug
+    // __bis_SR_register(LPM4_bits + GIE); // Enter LPM4 with interrupts enabled
     // Processor sleeps
     // ...
     // Processor wakes up after interrupt

@@ -1,8 +1,13 @@
+#
+# Copyright (c) 2020, University of Southampton and Contributors.
+# All rights reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
 cmake_minimum_required(VERSION 3.1)
 
 set(TARGET_NAME "aes")
-set(MSP430_GCC_DIR "/opt/msp430-gcc")
-set(DEVICE "msp430fr5994")
 
 add_executable(
     ${TARGET_NAME}

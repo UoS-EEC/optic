@@ -1,3 +1,7 @@
+// Copyright (c) 2020, University of Southampton.
+// All rights reserved.
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include <msp430fr5994.h>
 #include "ic.h"
 
@@ -6,10 +10,10 @@
 #define PERSISTENT __attribute__((section(".persistent")))
 
 typedef struct AtomFuncState_s {
-    uint8_t calibrated; // 0: need to calibrate, 1: no need
-    uint8_t check_fail; // set at the function beginning, reset at the end; so '1' at the entry means failed
-    uint8_t resume_thr; // resume threshold, represented as the resistor tap setting of the internal comparator
-    // uint8_t backup_thr; // backup threshold, represented as the resistor tap setting of the internal comparator
+    uint8_t calibrated;  // 0: need to calibrate, 1: no need
+    uint8_t check_fail;  // set at function entry, reset at exit; so '1' detected at the entry means failed before
+    uint8_t resume_thr;  // resume threshold, represented as the resistor tap setting of the internal comparator
+    // uint8_t backup_thr;  // backup threshold, represented as the resistor tap setting of the internal comparator
 } AtomFuncState;
 
 AtomFuncState atom_state[ATOM_FUNC_NUM] PERSISTENT;
