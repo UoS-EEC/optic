@@ -27,6 +27,10 @@ struct nrfReadResult {
 volatile static uint8_t TXData = 0x00;
 volatile static uint8_t RXData = 0x00;
 volatile static uint8_t ticks = 0;
+uint8_t dummy_payload[32] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+                             0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+                             0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+                             0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
 
 /* ------ Function Prototypes -----------------------------------------------*/
 
@@ -42,6 +46,8 @@ static void nrf24Command(struct nrfReadResult* res, const uint8_t address,
 
 // Read the status register and a byte of data
 static void nrf24ReadByte(struct nrfReadResult* res, const uint8_t address);
+
+static void nrf24WritePayload(struct nrfReadResult* res, uint8_t* payload, uint8_t size);
 
 // Assert c==true, otherwise indicate test fail and stall.
 void assert(bool c);
@@ -71,6 +77,14 @@ static void nrf24Command(struct nrfReadResult* res, const uint8_t address,
   res->response = spiTransaction(command);
   GPIO_setOutputHighOnPin(GPIO_PORT_P3, GPIO_PIN5);
 }
+
+static void nrf24WritePayload(struct nrfReadResult* res, uint8_t* payload, uint8_t size) {
+  GPIO_setOutputLowOnPin(GPIO_PORT_P3, GPIO_PIN5);
+  res->status = spiTransaction(RF24_W_TX_PAYLOAD);
+  while (size--) spiTransaction(*payload++);
+  GPIO_setOutputHighOnPin(GPIO_PORT_P3, GPIO_PIN5);
+}
+
 
 // __attribute__((optimize(0))) void cs_init() {
 //   CSCTL0_H = 0xA5;            // Unlock CS
@@ -182,32 +196,43 @@ int main(void) {
   /*__enable_interrupt();*/
 
   /* ------ Test nrf24: Power Down -> Standby-I ------ */
-  // Radio should be in Power Down state 10.3ms after VDD >= 1.9V
-  // Wait for 10ms
-  __delay_cycles(80000 + 800);
+  // Radio should be in Power Down in 10.3ms after VDD >= 1.9V
+  // Wait for 10.3ms (10.3 / 1K * 8M)
+  __delay_cycles(82400);
 
-  // // clear power-up data sent flag
-  // nrf24Command(&result, RF24_STATUS, RF24_TX_DS | 0x0E);
+  // Flush TX FIFO
+  GPIO_setOutputLowOnPin(GPIO_PORT_P3, GPIO_PIN5);
+  spiTransaction(RF24_FLUSH_TX);
+  GPIO_setOutputHighOnPin(GPIO_PORT_P3, GPIO_PIN5);
 
-  // // Read the STATUS and CONFIG registers
-  // nrf24ReadByte(&result, RF24_CONFIG);
-  // assert(result.status == 0b00001110);    // STATUS should be 0b00001110
-  // assert(result.response == 0b00001000);  // CONFIG should be 0b00001000
+  // clear power-up data sent flag, write 1 to clear
+  // 0x0E default
+  nrf24Command(&result, RF24_STATUS, RF24_TX_DS | 0x0E);
 
-  // nrf24Command(&result, RF24_CONFIG, RF24_EN_CRC | RF24_PWR_UP);
-  // assert(result.status == 0b00001110);
-  // assert(result.response == 0);
+  // clear PWR_UP, 0x08 default CONFIG state
+  nrf24Command(&result, RF24_CONFIG, 0x08);
 
-  // // Should be in Standy-I in 1.5ms
-  // __delay_cycles(12000);
-  // // Power Down current draw is 900nA. (x100V/A = 90uV = 0.09 mV)
-  // // PD -> SI transient 285 uA (x100V/A = 28.5mV)
-  // // Standy-I current draw is 22 uA. (x100V/A = 2.2mV)
-  // // Read STATUS and CONFIG registers
-  // // Read the STATUS and CONFIG registers
-  // nrf24ReadByte(&result, RF24_CONFIG);
-  // assert(result.status == 0b00001110);    // STATUS should be 0b00001110
-  // assert(result.response == 0b00001010);  // CONFIG should be 0b00001010
+  // Read the STATUS and CONFIG registers
+  nrf24ReadByte(&result, RF24_CONFIG);
+  assert(result.status == 0b00001110);    // STATUS should be 0b00001110
+  assert(result.response == 0b00001000);  // CONFIG should be 0b00001000
+
+  // Power Down -> Standby-I
+  nrf24Command(&result, RF24_CONFIG, RF24_EN_CRC | RF24_PWR_UP);
+  assert(result.status == 0b00001110);
+  assert(result.response == 0);
+
+  // Should be in Standby-I in 1.5ms
+  __delay_cycles(1300);
+  // Power Down current draw is 900nA. (x100V/A = 90uV = 0.09 mV)
+  // PD -> SI transient 285 uA (x100V/A = 28.5mV)
+  // Standy-I current draw is 22 uA. (x100V/A = 2.2mV)
+  // Read STATUS and CONFIG registers
+  // Read the STATUS and CONFIG registers
+  nrf24ReadByte(&result, RF24_CONFIG);
+  assert(result.status == 0b00001110);    // STATUS should be 0b00001110
+  assert(result.response == 0b00001010);  // CONFIG should be 0b00001010
+
   for (;;) {
     // atom_func_start(RADIO);
 
@@ -216,10 +241,11 @@ int main(void) {
     // nrf24Command(&result, RF24_STATUS, RF24_TX_DS | 0x0E);
     nrf24Command(&result, RF24_STATUS, RF24_TX_DS);
 
-    // Flush TX FIFO
-    GPIO_setOutputLowOnPin(GPIO_PORT_P3, GPIO_PIN5);
-    spiTransaction(RF24_FLUSH_TX);
-    GPIO_setOutputHighOnPin(GPIO_PORT_P3, GPIO_PIN5);
+    nrf24ReadByte(&result, RF24_FIFO_STATUS);
+#ifdef ASSERT
+    assert(result.status == 0x0E);
+    assert(result.response == 0x11);
+#endif
 
     // Power up
     nrf24Command(&result, RF24_CONFIG, RF24_EN_CRC | RF24_PWR_UP);
@@ -242,15 +268,16 @@ int main(void) {
     assert(result.response == 0);
 #endif
 
-    nrf24Command(&result, RF24_RF_SETUP, 0b00000111);  // 1 Mbps
-#ifdef ASSERT
-    assert(result.status == 0b00001110);
-    assert(result.response == 0);
-#endif
+//     nrf24Command(&result, RF24_RF_SETUP, 0b00000111);  // 1 Mbps
+// #ifdef ASSERT
+//     assert(result.status == 0b00001110);
+//     assert(result.response == 0);
+// #endif
 
     // Write payload to Tx Fifo
-    nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
-    nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
+    nrf24WritePayload(&result, dummy_payload, 32);
+    // nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
+    // nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
     // nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
     // nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
     // nrf24Command(&result, RF24_W_TX_PAYLOAD, 0xAA);  // 1 byte dummy payload
@@ -266,7 +293,7 @@ int main(void) {
     // Set CE high for at least 10us (too short on this clone) to trigger Tx
     // Goes back to Standby-1 when everything sent
     GPIO_setOutputHighOnPin(GPIO_PORT_P3, GPIO_PIN6);
-    __delay_cycles(800); 
+    __delay_cycles(60); // 100us 
     GPIO_setOutputLowOnPin(GPIO_PORT_P3, GPIO_PIN6);
     // Air time:
     // Preamble 1 byte, Address 5 byte, Payload 1 byte, CRC 1 byte
