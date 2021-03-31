@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
 
 # configs
-set(MSP430_GCC_DIR "/opt/msp430-gcc")
+set(MSP430_GCC_DIR "/opt/msp430-gcc-9.2.0")
 set(DEVICE "msp430fr5994")
 set(USB_PORT usbmodem143301)
 
@@ -12,4 +12,3 @@ project(IC-Atomic)
 enable_language(C ASM)
 
 add_subdirectory(aes)
-add_subdirectory(radio)
