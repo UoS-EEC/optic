@@ -7,13 +7,11 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-set(TARGET_NAME "aes")
+set(TARGET_NAME "test")
 
 add_executable(
     ${TARGET_NAME}
     main.c
-    aesa.c
-    aesa.h
     ic.c
     ic.h
 )

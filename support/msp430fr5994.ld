@@ -38,8 +38,8 @@
 OUTPUT_ARCH(msp430)
 ENTRY(_start)
 
-__stack_size = 0x200;
-__boot_stack_size = 0x80;
+__stack_size = 0x100;
+__boot_stack_size = 0x20;
 
 MEMORY {
   TINYRAM          : ORIGIN = 0xA, LENGTH = 0x0016

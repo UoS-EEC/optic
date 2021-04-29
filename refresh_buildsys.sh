@@ -1,5 +1,7 @@
 rm -rf build
 mkdir build
 cd build
-cmake .. -GNinja
-ninja
+# cmake .. -GNinja
+# ninja
+cmake ..
+make
