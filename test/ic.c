@@ -128,8 +128,8 @@ static void comp_init(void) {
     // CECTL1 = CEPWRMD_1|             // Normal power mode
     //          CEF      |
     //          CEFDLY_3 ;
-    CECTL1 = // CEMRVS   |  // CMRVL selects the Vref - default VREF0
-             CEPWRMD_2|  // 1 for Normal power mode / 2 for Ultra-low power mode
+    CECTL1 =//  CEMRVS   |  // CMRVL selects the Vref - default VREF0
+            //  CEPWRMD_2|  // 1 for Normal power mode / 2 for Ultra-low power mode
              CEF      |  // Output filter enabled
              CEFDLY_3;   // Output filter delay 3600 ns
             // CEMRVL = 0 by default, select VREF0
@@ -188,8 +188,8 @@ static void comp_init(void) {
     // CECTL0 = CEIPEN | CEIPSEL_2;    // Enable V+, input channel C2/P1.2
     // CECTL3 |= CEPD2;  // Input Buffer Disable @P1.2/C2 (also set by the last line)
 
-    CEINT  = CEIE;  // Interrupt enabled
-            //  CEIIE;  // Inverted interrupt enabled
+    CEINT  = CEIE|  // Interrupt enabled
+             CEIIE;  // Inverted interrupt enabled
             //  CERDYIE;  // Ready interrupt enabled
 
     CECTL1 |= CEON;  // Turn On Comparator_E
@@ -200,20 +200,20 @@ void __attribute__((interrupt(COMP_E_VECTOR))) Comp_ISR(void) {
     switch (__even_in_range(CEIV, CEIV_CERDYIFG)) {
         case CEIV_NONE: break;
         case CEIV_CEIFG:
-            CEINT = (CEINT & ~CEIFG & ~CEIE & ~CEIIFG) | CEIIE;
+            CEINT = (CEINT & ~CEIFG & ~CEIE) | CEIIE;
             // CECTL1 |= CEMRVL;
             
             P1OUT &= ~BIT4;  // debug
             __bic_SR_register_on_exit(LPM4_bits);
             break;
         case CEIV_CEIIFG:
-            CEINT = (CEINT & ~CEIIFG & ~CEIIE & ~CEIFG) | CEIE;
+            CEINT = (CEINT & ~CEIIFG & ~CEIIE) | CEIE;
             // CECTL1 &= ~CEMRVL;
 
             // hibernate();
             // if (suspending) {
-                P1OUT |= BIT4;  // Debug
-                __bis_SR_register_on_exit(LPM4_bits | GIE);
+            P1OUT |= BIT4;  // Debug
+            __bis_SR_register_on_exit(LPM4_bits | GIE);
             // } else {
             //     P1OUT &= ~BIT5;  // Debug, come back from restore()
             //     __bic_SR_register_on_exit(LPM4_bits);
