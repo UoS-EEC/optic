@@ -65,6 +65,9 @@ uint16_t adc_r1;
 uint16_t adc_r2;
 uint16_t adc_reading;
 
+uint16_t rtc_count_last;
+uint16_t rtc_count;
+
 // Function declarations
 void hibernate(void);
 void restore(void);
@@ -94,16 +97,45 @@ fastmemcpy(uint8_t *dst, uint8_t *src, size_t len) {
 }
 
 static void clock_init(void) {
-    CSCTL0_H = 0xA5;  // Unlock register
+    CSCTL0_H = CSKEY_H;  // Unlock register
     CSCTL1 |= DCOFSEL_6;  // DCO 8MHz
 
-    // Set ACLK = VLO; SMCLK = DCO; MCLK = DCO;
+    // Set ACLK = LFXT/VLO; SMCLK = DCO; MCLK = DCO;
     CSCTL2 = SELA_0 + SELS_3 + SELM_3;
 
     // ACLK: Source/1; SMCLK: Source/1; MCLK: Source/1;
     CSCTL3 = DIVA_0 + DIVS_0 + DIVM_0;  // SMCLK = MCLK = 8 MHz
 
-    CSCTL0_H = 0x01;  // Lock Register
+    // LFXT 32kHz crystal for RTC
+    PJSEL0 = BIT4 | BIT5;                   // Initialize LFXT pins
+    CSCTL4 &= ~LFXTOFF;                     // Enable LFXT
+    do {
+      CSCTL5 &= ~LFXTOFFG;                  // Clear LFXT fault flag
+      SFRIFG1 &= ~OFIFG;
+    } while (SFRIFG1 & OFIFG);              // Test oscillator fault flag
+
+    CSCTL0_H = 0;  // Lock Register
+}
+
+static void rtc_init(void) {
+    // Setup RTC Timer
+    RTCCTL0_H = RTCKEY_H;                   // Unlock RTC
+    RTCCTL0_L = RTCTEVIE_L;                 // RTC event interrupt enable
+    RTCCTL13 = RTCTEV_2 | RTCHOLD;          // Counter Mode, 32-kHz crystal, 24-bit ovf
+    // RTCCTL13 &= ~(RTCHOLD);                 // Start RTC
+}
+
+void __attribute__((interrupt(RTC_C_VECTOR))) RTC_ISR(void) {
+    switch (__even_in_range(RTCIV, RTCIV__RT1PSIFG)) {
+        case RTCIV__RTCTEVIFG:              // RTCEVIFG
+            RTCCTL13 |= RTCHOLD;            // Hold counter
+            RTCNT1 = 0;
+            RTCNT2 = 0;
+            RTCNT3 = 0;
+            RTCNT4 = 0;
+            break;
+        default: break;
+    }
 }
 
 static void gpio_init(void) {
@@ -171,17 +203,18 @@ static void comp_init(void) {
     // P1SEL1 |= BIT2;                 // Select COUT function on P1.2/COUT
 
     // Setup Comparator_E
-    
+
     // CECTL1 = CEPWRMD_1|             // Normal power mode
     //          CEF      |
     //          CEFDLY_3 ;
-    CECTL1 = // CEMRVS   |  // CMRVL selects the Vref - default VREF0
+    CECTL1 =  // CEMRVS   |  // CMRVL selects the Vref - default VREF0
              CEPWRMD_2|  // 1 for Normal power mode / 2 for Ultra-low power mode
              CEF      |  // Output filter enabled
              CEFDLY_3;   // Output filter delay 3600 ns
             // CEMRVL = 0 by default, select VREF0
 
-    CECTL2 = CEREFL_1 |  // VREF 1.2 V is selected
+    CECTL2 = CEREFACC |  // Enable (low-power low-accuracy) clocked mode (can be overwritten by ADC static mode)
+             CEREFL_1 |  // VREF 1.2 V is selected
              CERS_2   |  // VREF applied to R-ladder
              CERSEL   |  // to -terminal
              CEREF04 | CEREF02 | CEREF01 | CEREF00|  // Hi V_th, 23(10111)
@@ -220,6 +253,7 @@ static void comp_init(void) {
             // 30 : 3.4875
             // 31 : 3.6000
 
+    // Set up internal Vref (No use)
     // while (REFCTL0 & REFGENBUSY);
     // REFCTL0 |= REFVSEL_0 | REFON;  // Select internal Vref (VR+) = 1.2V  Internal Reference ON
     // while (!(REFCTL0 & REFBGRDY));  // Wait for reference generator to settle
@@ -249,7 +283,7 @@ void __attribute__((interrupt(COMP_E_VECTOR))) Comp_ISR(void) {
         case CEIV_CEIFG:
             CEINT = (CEINT & ~CEIFG & ~CEIIFG & ~CEIE) | CEIIE;
             // CECTL1 |= CEMRVL;
-            
+
             P1OUT &= ~BIT4;  // debug
             __bic_SR_register_on_exit(LPM4_bits);
             break;
@@ -282,17 +316,17 @@ iclib_boot() {
     // Essential initialization stack for wakeup
     // (Avoid being stuck in boot & fail)
     gpio_init();
+    clock_init();
     comp_init();
-    
 
     P1OUT |= BIT4;  // Debug
-    __bis_SR_register(LPM4_bits + GIE);  // Enter LPM4 with interrupts enabled
+    __bis_SR_register(LPM4_bits | GIE);  // Enter LPM4 with interrupts enabled
     // Processor sleeps
     // ...
     // Processor wakes up after interrupt (Hi V threshold hit)
 
     // Remaining initialization stack for normal execution
-    clock_init();
+    rtc_init();
     adc12_init();
 
     // Boot functions that are mapped to ram (most importantly fastmemcpy)
@@ -447,7 +481,7 @@ void restore(void) {
 }
 
 void atom_func_start(uint8_t func_id) {
-#ifndef DEBS
+#ifndef DEBS  // Our approach
     if (atom_state[func_id].check_fail) {
         atom_state[func_id].calibrated = 0;
         // Debug, indicate failed
@@ -524,7 +558,7 @@ void atom_func_end(uint8_t func_id) {
     // enable interrupts again
     // CEINT |= CEIIE;
 
-#ifndef DEBS
+#ifndef DEBS  // Our own approach
     if (!atom_state[func_id].calibrated) {
         // end of a calibration
         // measure end voltage

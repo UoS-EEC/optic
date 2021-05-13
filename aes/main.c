@@ -105,8 +105,6 @@ int main(void) {
 
         // __bis_SR_register(LPM4_bits | GIE);
 
-        // int32_t i = 8000000;
-        // while (i-- > 0) {}
         __delay_cycles(1000000);
         P1OUT ^= BIT0;
     }
