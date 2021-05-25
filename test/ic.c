@@ -60,6 +60,9 @@ uint8_t PERSISTENT stack_snapshot[STACK_SIZE];
 uint8_t PERSISTENT snapshot_valid = 0;
 uint8_t PERSISTENT suspending;  // from hibernate = 1, from restore = 0
 
+uint16_t adc_r1;
+uint16_t adc_r2;
+uint16_t adc_reading;
 
 void __attribute__((section(".ramtext"), naked))
 fastmemcpy(uint8_t *dst, uint8_t *src, size_t len) {
@@ -114,18 +117,18 @@ static void rtc_init(void) {
     // RTCCTL13 &= ~(RTCHOLD);                 // Start RTC
 }
 
-void __attribute__((interrupt(RTC_C_VECTOR))) RTC_ISR(void) {
-    switch (__even_in_range(RTCIV, RTCIV__RT1PSIFG)) {
-        case RTCIV__RTCTEVIFG:              // RTCEVIFG
-            RTCCTL13 |= RTCHOLD;            // Hold counter
-            RTCNT1 = 0;
-            RTCNT2 = 0;
-            RTCNT3 = 0;
-            RTCNT4 = 0;
-            break;
-        default: break;
-    }
-}
+// void __attribute__((interrupt(RTC_C_VECTOR))) RTC_ISR(void) {
+//     switch (__even_in_range(RTCIV, RTCIV__RT1PSIFG)) {
+//         case RTCIV__RTCTEVIFG:              // RTCEVIFG
+//             RTCCTL13 |= RTCHOLD;            // Hold counter
+//             RTCCNT1 = 0;
+//             RTCCNT2 = 0;
+//             RTCCNT3 = 0;
+//             RTCCNT4 = 0;
+//             break;
+//         default: break;
+//     }
+// }
 
 static void gpio_init(void) {
     // Initialize all pins to output low to reduce power consumption
