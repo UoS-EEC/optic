@@ -7,6 +7,7 @@
 void atom_func_start(uint8_t func_id);
 void atom_func_end(uint8_t func_id);
 
+uint16_t sample_vcc(void);
 
 // configs
 #define AES_128_ENC      0

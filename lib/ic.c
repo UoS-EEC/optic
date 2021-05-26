@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #include <msp430fr5994.h>
-#include "ic.h"
+#include "lib/ic.h"
 
 // #define DEBS
 #define TRACK_STACK
@@ -63,14 +63,16 @@ uint8_t PERSISTENT suspending;  // from hibernate = 1, from restore = 0
 
 uint16_t adc_r1;
 uint16_t adc_r2;
-uint16_t adc_reading;
 
-uint16_t rtc_count_last;
+uint16_t adc_reading;
+uint16_t adc_reading_last;
+
 uint16_t rtc_count;
+uint16_t rtc_count_last;
 
 // Function declarations
-void hibernate(void);
-void restore(void);
+static void hibernate(void);
+static void restore(void);
 
 void __attribute__((section(".ramtext"), naked))
 fastmemcpy(uint8_t *dst, uint8_t *src, size_t len) {
@@ -167,11 +169,11 @@ static void adc12_init(void) {
 
     ADC12CTL0 = ADC12SHT0_2 |  // 16 cycles sample and hold time
                 ADC12ON;       // ADC12 on
-    ADC12CTL1 = ADC12PDIV_1 |  // Predive by 4
+    ADC12CTL1 = ADC12PDIV_0 |  // Predivide by 1, from ~4.8MHz MODOSC
                 ADC12SHP;      // SAMPCON is from the sampling timer
 
     // Default 12bit conversion results, 14cycles conversion time
-    // ADC12CTL2 = ADC12RES_2;
+    // ADC12CTL2 = ADC12RES_2;  // Default
 
     // Use battery monitor (1/2 AVcc)
     // ADC12CTL3 = ADC12BATMAP;  // 1/2AVcc channel selected for ADC ch A31
@@ -191,11 +193,18 @@ static void adc12_init(void) {
 void __attribute__((interrupt(ADC12_B_VECTOR))) ADC12_ISR(void) {
     switch (__even_in_range(ADC12IV, ADC12IV__ADC12RDYIFG)) {
         case ADC12IV__ADC12IFG0:            // Vector 12:  ADC12MEM0
-            adc_reading = ADC12MEM0;
+            // Result is stored in ADC12MEM0
             __bic_SR_register_on_exit(LPM0_bits);
             break;
         default: break;
     }
+}
+
+// Take ~68us
+uint16_t sample_vcc(void) {
+    ADC12CTL0 |= ADC12ENC | ADC12SC;  // start sampling & conversion
+    __bis_SR_register(LPM0_bits | GIE);
+    return ADC12MEM0;
 }
 
 static void comp_init(void) {
@@ -307,6 +316,7 @@ void __attribute__((interrupt(COMP_E_VECTOR))) Comp_ISR(void) {
     }
 }
 
+// Boot function
 void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0")))
 iclib_boot() {
     WDTCTL = WDTPW | WDTHOLD;            // Stop watchdog timer
@@ -357,7 +367,7 @@ iclib_boot() {
     main();
 }
 
-void hibernate(void) {
+static void hibernate(void) {
     // !!! *** DONT TOUCH THE STACK HERE *** !!!
 
     // copy Core registers to FRAM
@@ -416,7 +426,7 @@ void hibernate(void) {
     suspending = 1;
 }
 
-void restore(void) {
+static void restore(void) {
     // allocate to .boot_stack to prevent being overwritten when copying .bss
     static uint8_t *src __attribute__((section(".boot_stack")));
     static uint8_t *dst __attribute__((section(".boot_stack")));
@@ -598,4 +608,28 @@ void atom_func_end(uint8_t func_id) {
 
     // CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_17;
     CEINT |= CEIIE;
+}
+
+void profiling_start(uint8_t func_id) {
+    // *** Charging cycle starts ***
+    // Take a Vcc reading
+    adc_reading_last = sample_vcc();
+
+    // Clear and start RTC
+
+    // Sleep until hi voltage threshold is hit...
+
+    // *** Charging cycle ends, discharging cycle starts ***
+    // Take a Vcc reading, get Delta V_charge
+    // Take a time reading, get T_charge
+    // Run the function...
+}
+
+void profiling_end(uint8_t func_id) {
+    // *** Discharging cycle ends ***
+    // Take a Vcc reading, get Delta V_exe
+    // Take a time reading, get T_exe
+    // Stop RTC
+
+    // Adapt the next threshold... (TBD)
 }

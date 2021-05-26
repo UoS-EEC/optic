@@ -1,22 +1,21 @@
 #include <msp430fr5994.h>
-#include "ic.h"
+#include "test/ic.h"
+
+uint16_t ADCvar;
+extern uint16_t adc_reading;
 
 int main(void) {
-    // Setup RTC Timer
-    RTCCTL0_H = RTCKEY_H;                   // Unlock RTC
-
-    RTCCTL0_L = RTCTEVIE_L;                 // RTC event interrupt enable
-
-    RTCCTL13 = RTCTEV_1 | RTCHOLD;  // Counter Mode, 32-kHz crystal, 16-bit ovf
-
-    RTCCTL13 &= ~(RTCHOLD);                 // Start RTC
-
-    // __bis_SR_register(LPM3_bits | GIE);     // Enter LPM3 mode w/ interrupts enabled
-    // __no_operation();
+    RTCCTL13 &= ~(RTCHOLD);  // Start RTC
+    // ADC12CTL0 |= ADC12ENC;
 
     for (;;) {
-        __delay_cycles(1000000);
-        P1OUT ^= BIT5;
+        __bis_SR_register(LPM3_bits | GIE);
+        // ... Wake up from RTC event
+
+        // ~67us
+        P1OUT |= BIT5;  // debug
+        ADCvar = sample_vcc();
+        P1OUT &= ~BIT5;  // debug
     }
 
     return 0;
@@ -25,7 +24,8 @@ int main(void) {
 void __attribute__((interrupt(RTC_C_VECTOR))) RTC_ISR(void) {
     switch (__even_in_range(RTCIV, RTCIV__RT1PSIFG)) {
         case RTCIV__RTCTEVIFG:              // RTCEVIFG
-            P1OUT ^= BIT0;                  // Toggle P1.0 LED
+            // P1OUT ^= BIT0;                  // Toggle P1.0 LED
+            __bic_SR_register_on_exit(LPM3_bits);
             break;
         default: break;
     }
