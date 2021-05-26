@@ -1,12 +1,16 @@
-# skip CMake's check for a working compiler
+# Copyright (c) 2020-2021, University of Southampton and Contributors.
+# All rights reserved.
+# SPDX-License-Identifier: MIT
+
+# Skip CMake's check for a working compiler
 include(CMakeForceCompiler)
 
-# find toolchain
+# Find toolchain
 find_program(TC-GCC msp430-elf-gcc ${MSP430_GCC_DIR}/bin)
 find_program(TC-GXX msp430-elf-g++ ${MSP430_GCC_DIR}/bin)
 find_program(MSPDEBUG mspdebug)
 
-# define toolchain
+# Define toolchain
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_ASM_COMPILER ${TC-GCC} CACHE INTERNAL "")
 set(CMAKE_C_COMPILER ${TC-GCC} CACHE INTERNAL "")

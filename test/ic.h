@@ -1,5 +1,9 @@
-#ifndef IC_H
-#define IC_H
+// Copyright (c) 2020-2021, University of Southampton.
+// All rights reserved.
+// SPDX-License-Identifier: MIT
+
+#ifndef TEST_IC_H_
+#define TEST_IC_H_
 
 #include <stdint.h>
 #include <stddef.h>
@@ -14,4 +18,4 @@ uint16_t sample_vcc(void);
 #define AES_128_DEC      1
 #define ATOM_FUNC_NUM    2
 
-#endif  // IC_H
+#endif  // TEST_IC_H_

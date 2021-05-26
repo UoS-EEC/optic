@@ -122,4 +122,3 @@ int main(void) {
 //     TA0CTL &= ~MC;  // halt timer
 //     __bic_SR_register_on_exit(LPM0_bits);
 // }
-

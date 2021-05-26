@@ -1,3 +1,7 @@
+# Copyright (c) 2020-2021, University of Southampton and Contributors.
+# All rights reserved.
+# SPDX-License-Identifier: MIT
+
 #!/usr/local/bin/python3
 # %%
 
