@@ -4,9 +4,8 @@
 
 #include <msp430fr5994.h>
 #include "lib/ic.h"
+#include "lib/config.h"
 
-// #define DEBS
-#define TRACK_STACK
 
 extern uint8_t __datastart, __dataend, __romdatastart;  // , __romdatacopysize;
 extern uint8_t __bootstackend;
@@ -22,30 +21,17 @@ typedef struct AtomFuncState_s {
     uint8_t calibrated;
 
     // check_fail:
-    // set at function entry, reset at exit;
-    // so '1' detected at the entry means failed before
+    // Set at function entry, reset at exit,
+    // ..so read as '1' at the entry means the function failed before
     uint8_t check_fail;
 
-    // resume_thr:
-    // resume threshold, represented as
-    // the resistor tap setting of the internal comparator
-    uint8_t resume_thr;
-
-    // backup_thr:
-    // backup threshold, represented as
-    // the resistor tap setting of the internal comparator
-    // uint8_t backup_thr;
+    // start_thr:
+    // Resume threshold, represented as
+    // ..the resistor tap setting of the internal comparator
+    uint8_t start_thr;
 } AtomFuncState;
 
 AtomFuncState PERSISTENT atom_state[ATOM_FUNC_NUM];
-
-
-// indicating the maximum size of each FRAM snapshot
-#define STACK_SIZE 0x0100  // 256 bytes stack, should >= __stack_size in .ld
-// #define HEAP_SIZE 0x00A0  // 160 bytes heap, if there is heap
-#define DATA_SIZE 0x0800  // at most 2KB
-#define BSS_SIZE 0x0800  // at most 2KB
-
 
 // Snapshot of core processor registers
 uint16_t PERSISTENT register_snapshot[15];
@@ -58,7 +44,7 @@ uint8_t PERSISTENT stack_snapshot[STACK_SIZE];
 // uint8_t PERSISTENT heap_snapshot[HEAP_SIZE];
 
 uint8_t PERSISTENT snapshot_valid = 0;
-uint8_t PERSISTENT suspending;  // from hibernate = 1, from restore = 0
+uint8_t PERSISTENT suspending;  // from hibernate: 1, from restore: 0
 
 
 uint16_t adc_r1;
@@ -102,7 +88,7 @@ static void clock_init(void) {
     CSCTL0_H = CSKEY_H;  // Unlock register
     CSCTL1 |= DCOFSEL_6;  // DCO 8MHz
 
-    // Set ACLK = LFXT/VLO; SMCLK = DCO; MCLK = DCO;
+    // Set ACLK = LFXT(if enabled)/VLO; SMCLK = DCO; MCLK = DCO;
     CSCTL2 = SELA_0 + SELS_3 + SELM_3;
 
     // ACLK: Source/1; SMCLK: Source/1; MCLK: Source/1;
@@ -122,22 +108,8 @@ static void clock_init(void) {
 static void rtc_init(void) {
     // Setup RTC Timer
     RTCCTL0_H = RTCKEY_H;                   // Unlock RTC
-    RTCCTL0_L = RTCTEVIE_L;                 // RTC event interrupt enable
-    RTCCTL13 = RTCTEV_2 | RTCHOLD;          // Counter Mode, 32-kHz crystal, 24-bit ovf
+    RTCCTL13 = RTCHOLD;  // Counter Mode, clocked from 32-kHz crystal
     // RTCCTL13 &= ~(RTCHOLD);                 // Start RTC
-}
-
-void __attribute__((interrupt(RTC_C_VECTOR))) RTC_ISR(void) {
-    switch (__even_in_range(RTCIV, RTCIV__RT1PSIFG)) {
-        case RTCIV__RTCTEVIFG:              // RTCEVIFG
-            RTCCTL13 |= RTCHOLD;            // Hold counter
-            RTCCNT1 = 0;
-            RTCCNT2 = 0;
-            RTCCNT3 = 0;
-            RTCCNT4 = 0;
-            break;
-        default: break;
-    }
 }
 
 static void gpio_init(void) {
@@ -229,16 +201,16 @@ static void comp_init(void) {
              CEREF04 | CEREF02 | CEREF01 | CEREF00|  // Hi V_th, 23(10111)
              CEREF14 | CEREF11 | CEREF10;  // Lo V_th, 19(10011)
             // CEREF_n : V threshold (Volt)
-            // 0 : 0.1125
-            // 1 : 0.2250
-            // 2 : 0.3375
-            // 3 : 0.4500
-            // 4 : 0.5625
-            // 5 : 0.6750
-            // 6 : 0.7875
-            // 7 : 0.9000
-            // 8 : 1.0125
-            // 9 : 1.1250
+            //  0 : 0.1125
+            //  1 : 0.2250
+            //  2 : 0.3375
+            //  3 : 0.4500
+            //  4 : 0.5625
+            //  5 : 0.6750
+            //  6 : 0.7875
+            //  7 : 0.9000
+            //  8 : 1.0125
+            //  9 : 1.1250
             // 10 : 1.2375
             // 11 : 1.3500
             // 12 : 1.4625
@@ -294,7 +266,7 @@ void __attribute__((interrupt(COMP_E_VECTOR))) Comp_ISR(void) {
             // CECTL1 |= CEMRVL;
 
             P1OUT &= ~BIT4;  // debug
-            __bic_SR_register_on_exit(LPM4_bits);
+            __bic_SR_register_on_exit(LPM3_bits);
             break;
         case CEIV_CEIIFG:
             CEINT = (CEINT & ~CEIIFG & ~CEIFG & ~CEIIE) | CEIE;
@@ -303,10 +275,10 @@ void __attribute__((interrupt(COMP_E_VECTOR))) Comp_ISR(void) {
             hibernate();
             if (suspending) {
                 P1OUT |= BIT4;  // Debug
-                __bis_SR_register_on_exit(LPM4_bits | GIE);
+                __bis_SR_register_on_exit(LPM3_bits | GIE);
             } else {
                 P1OUT &= ~BIT5;  // Debug, come back from restore()
-                __bic_SR_register_on_exit(LPM4_bits);
+                __bic_SR_register_on_exit(LPM3_bits);
             }
             break;
         // case CEIV_CERDYIFG:
@@ -323,10 +295,9 @@ iclib_boot() {
     __set_SP_register(&__bootstackend);  // Boot stack
     __bic_SR_register(GIE);              // Disable interrupts during startup
 
-    // Essential initialization stack for wakeup
-    // (Avoid being stuck in boot & fail)
+    // Only essential initialization stack for wakeup
+    // ..to avoid being stuck in boot & fail
     gpio_init();
-    clock_init();
     comp_init();
 
     P1OUT |= BIT4;  // Debug
@@ -336,6 +307,7 @@ iclib_boot() {
     // Processor wakes up after interrupt (Hi V threshold hit)
 
     // Remaining initialization stack for normal execution
+    clock_init();
     rtc_init();
     adc12_init();
 
@@ -505,7 +477,7 @@ void atom_func_start(uint8_t func_id) {
 
         // set comparator to the previously calibrated threshold
         CECTL2 = (CECTL2 & ~CEREF0) |
-            (CEREF0 & ((uint16_t) atom_state[func_id].resume_thr));
+            (CEREF0 & ((uint16_t) atom_state[func_id].start_thr));
 
         // CEINT |= CEIIE; // should have been set, just in case
         CECTL1 &= ~CEMRVL;
@@ -582,16 +554,16 @@ void atom_func_end(uint8_t func_id) {
 
         // calculate the resume threshold, represented as resistor tap setting
         // (may need an overflow check for the latter part)
-        // atom_state[func_id].resume_thr =
+        // atom_state[func_id].start_thr =
             // ((int)adc_r1 - (int)adc_r2 < 512) ?
             // 20 :(uint8_t)((double)(adc_r1 - adc_r2) / 4095.0 * 32.0) + 17;
         if (adc_r1 > adc_r2) {
-            atom_state[func_id].resume_thr =
+            atom_state[func_id].start_thr =
                 (uint8_t)((double)(adc_r1 - adc_r2) / 4095.0 * 32.0 + 15.0);
         } else {
-            atom_state[func_id].resume_thr = (uint8_t) 17;
+            atom_state[func_id].start_thr = (uint8_t) 17;
         }
-        // atom_state[func_id].resume_thr = (adc_r1 > adc_r2) ?
+        // atom_state[func_id].start_thr = (adc_r1 > adc_r2) ?
         //     (uint8_t)((double)(adc_r1 - adc_r2) / 4095.0 * 32.0 + 14.0) :
         //     (uint8_t) 17;
 
@@ -610,26 +582,29 @@ void atom_func_end(uint8_t func_id) {
     CEINT |= CEIIE;
 }
 
-void profiling_start(uint8_t func_id) {
-    // *** Charging cycle starts ***
-    // Take a Vcc reading
-    adc_reading_last = sample_vcc();
+// void profiling_start(uint8_t func_id) {
+//     // *** Charging cycle starts ***
+//     // Take a Vcc reading
+//     adc_reading_last = sample_vcc();
 
-    // Clear and start RTC
+//     // Clear and start RTC
+//     RTCCNT12 = 0;
+//     RTCCTL13 &= ~(RTCHOLD);  // Start RTC
 
-    // Sleep until hi voltage threshold is hit...
+//     // Sleep until hi voltage threshold is hit...
+//     __bis_SR_register(LPM3_bits | GIE);
 
-    // *** Charging cycle ends, discharging cycle starts ***
-    // Take a Vcc reading, get Delta V_charge
-    // Take a time reading, get T_charge
-    // Run the function...
-}
+//     // *** Charging cycle ends, discharging cycle starts ***
+//     // Take a Vcc reading, get Delta V_charge
+//     // Take a time reading, get T_charge
+//     // Run the function...
+// }
 
-void profiling_end(uint8_t func_id) {
-    // *** Discharging cycle ends ***
-    // Take a Vcc reading, get Delta V_exe
-    // Take a time reading, get T_exe
-    // Stop RTC
+// void profiling_end(uint8_t func_id) {
+//     // *** Discharging cycle ends ***
+//     // Take a Vcc reading, get Delta V_exe
+//     // Take a time reading, get T_exe
+//     // Stop RTC
 
-    // Adapt the next threshold... (TBD)
-}
+//     // Adapt the next threshold... (TBD)
+// }

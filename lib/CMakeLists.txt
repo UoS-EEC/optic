@@ -10,6 +10,7 @@ add_library(
     ${TARGET_NAME}
     ic.c
     ic.h
+    config.h
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE ${MSP430_GCC_DIR}/include)

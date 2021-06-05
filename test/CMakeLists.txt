@@ -11,6 +11,7 @@ add_executable(
     main.c
     ic.c
     ic.h
+    config.h
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES SUFFIX ".elf")
@@ -25,7 +26,7 @@ target_compile_options(
     ${TARGET_NAME}
     PRIVATE -std=c99
     PRIVATE -mmcu=${DEVICE} 
-    # PRIVATE -O2
+    PRIVATE -O0
     PRIVATE -msmall
     PRIVATE -g 
     # PRIVATE -mhwmult=none

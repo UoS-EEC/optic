@@ -19,7 +19,7 @@ void aes_128_enc(uint8_t* key, uint8_t* iv, uint8_t* plaintext,
     AESACTL0 = AESCMEN    |             // Using DMA
                AESCM__CBC |             // cipher block chaining (CBC) mode
                AESKL__128 |             // 128 bit key length
-               AESOP_0    ;             // Encryption
+               AESOP_0;                 // Encryption
 
     // Write key into AESAKEY
     // (Load by word. Loading by byte should use AESAKEY0!)
@@ -43,7 +43,7 @@ void aes_128_enc(uint8_t* key, uint8_t* iv, uint8_t* plaintext,
     DMA0CTL = DMADT_0      |            // Single transfer mode
               DMADSTINCR_3 |            // Increment destination address
               DMASRCINCR_0 |            // Unchanged source address
-              DMALEVEL     ;            // AESA uses level sensitive triggers
+              DMALEVEL;                 // AESA uses level sensitive triggers
     DMA0SA = (uint16_t) &AESADOUT;      // Source address
     DMA0DA = (uint16_t) ciphertext;     // Destination address
     DMA0SZ = num_blocks << 3;           // Size in words
@@ -53,7 +53,7 @@ void aes_128_enc(uint8_t* key, uint8_t* iv, uint8_t* plaintext,
     DMA1CTL = DMADT_0      |            // Single transfer mode
               DMADSTINCR_0 |            // Unchanged destination address
               DMASRCINCR_3 |            // Increment source address
-              DMALEVEL     ;            // AESA uses level sensitive triggers
+              DMALEVEL;                 // AESA uses level sensitive triggers
     DMA1SA = (uint16_t) plaintext;      // Source address
     DMA1DA = (uint16_t) &AESAXDIN;      // Destination address
     DMA1SZ = num_blocks << 3;           // Size in words
@@ -90,7 +90,7 @@ void aes_128_dec(uint8_t* key, uint8_t* iv, uint8_t* ciphertext,
     // Configure AES
     AESACTL0 |= AESCMEN    |            // Using DMA
                 AESCM__CBC |            // cipher block chaining (CBC) mode
-                AESOP_3    ;            // Decryption
+                AESOP_3;                // Decryption
     AESASTAT |= AESKEYWR;               // Use previously generated key
 
     // DMA Channel selection.
@@ -103,7 +103,7 @@ void aes_128_dec(uint8_t* key, uint8_t* iv, uint8_t* ciphertext,
     DMA0CTL = DMADT_0      |
               DMADSTINCR_0 |
               DMASRCINCR_3 |
-              DMALEVEL     ;
+              DMALEVEL;
     DMA0SA = (uint16_t) iv;             // Source address
     DMA0DA = (uint16_t) &AESAXIN;       // Destination address
     DMA0SZ = 8;                         // Size in words
@@ -113,7 +113,7 @@ void aes_128_dec(uint8_t* key, uint8_t* iv, uint8_t* ciphertext,
     DMA1CTL = DMADT_0      |
               DMADSTINCR_3 |
               DMASRCINCR_0 |
-              DMALEVEL     ;
+              DMALEVEL;
     DMA1SA = (uint16_t) &AESADOUT;      // Source address
     DMA1DA = (uint16_t) plaintext;      // Destination address
     DMA1SZ = num_blocks << 3;           // Size in words
@@ -123,7 +123,7 @@ void aes_128_dec(uint8_t* key, uint8_t* iv, uint8_t* ciphertext,
     DMA2CTL = DMADT_0      |
               DMASRCINCR_3 |
               DMADSTINCR_0 |
-              DMALEVEL     ;
+              DMALEVEL;
     DMA2SA = (uint16_t) ciphertext;     // Source address
     DMA2DA = (uint16_t) &AESADIN;       // Destination address
     DMA2SZ = num_blocks << 3;           // Size in words
