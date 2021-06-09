@@ -60,6 +60,7 @@ int16_t d_v_discharge;
 int16_t rtc_cnt1;
 int16_t rtc_cnt2;
 float v_exe;
+uint8_t storing_energy;
 
 uint8_t PERSISTENT profiling;
 
@@ -324,10 +325,11 @@ static void comp_init(void) {
     P1SEL1 |= BIT2;                 // Select COUT function on P1.2/COUT
 
     // Setup Comparator_E
-    CECTL1 = CEMRVS   |
-             CEPWRMD_0|  // 1 for Normal power mode / 2 for Ultra-low power mode
-             CEF      |  // Output filter enabled
-             CEFDLY_1;   // Output filter delay 3600 ns
+    // CECTL1 = CEMRVS   |
+            //  CEPWRMD_1|  // 1 for Normal power mode / 2 for Ultra-low power mode
+            //  CEF      |  // Output filter enabled
+            //  CEFDLY_1;   // Output filter delay 900 ns
+    CECTL1 = CEPWRMD_1;
 
     CECTL2 =  // CEREFACC |  // Enable (low-power low-accuracy) clocked mode
                          // ..(can be overwritten by ADC static mode)
@@ -386,34 +388,39 @@ static void comp_init(void) {
 
 // resistor_tap should be from 0 to 31
 void set_CEREF0(uint8_t resistor_tap) {
-    CECTL2 = (CECTL2 & (~CEREF0)) |
+    CECTL2 = (CECTL2 & ~CEREF0) |
         (CEREF0 & (uint16_t) resistor_tap);
 }
 
 // resistor_tap should be from 0 to 31
 void set_CEREF1(uint8_t resistor_tap) {
-    CECTL2 = (CECTL2 & (~CEREF1)) |
+    CECTL2 = (CECTL2 & ~CEREF1) |
         (CEREF1 & ((uint16_t) resistor_tap << 8));
 }
 
 // Comparator E interrupt service routine, Hibernus
 void __attribute__((interrupt(COMP_E_VECTOR))) Comp_ISR(void) {
+    P7OUT |= BIT0;
     switch (__even_in_range(CEIV, CEIV_CERDYIFG)) {
         case CEIV_NONE: break;
         case CEIV_CEIFG:
             // CECTL1 &= ~CEMRVS;  // Should be before changing CEINT, otherwise UNSTABLE!!!
             // __delay_cycles(75);
-            CECTL1 |= CEMRVL;
+            // CECTL1 |= CEMRVL;
             CEINT = (CEINT & (~CEIFG) & (~CEIIFG) & (~CEIE)) | CEIIE;
-            COMPARATOR_DELAY;
+            // COMPARATOR_DELAY;
 
             P1OUT &= ~BIT4;  // Debug
             __bic_SR_register_on_exit(LPM3_bits);
             break;
         case CEIV_CEIIFG:
-            CECTL1 &= ~CEMRVL;
+            // CECTL1 &= ~CEMRVL;
+            if (storing_energy) {
+                set_CEREF0(adapt_threshold);
+                set_CEREF1(TARGET_END_THRESHOLD);
+                // COMPARATOR_DELAY;
+            }
             CEINT = (CEINT & (~CEIIFG) & (~CEIFG) & (~CEIIE)) | CEIE;
-            COMPARATOR_DELAY;
 
             // hibernate();
             // if (suspending) {
@@ -429,6 +436,7 @@ void __attribute__((interrupt(COMP_E_VECTOR))) Comp_ISR(void) {
         //     break;
         default: break;
     }
+    P7OUT &= ~BIT0;
 }
 
 void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0")))
@@ -463,6 +471,7 @@ iclib_boot() {
         *dst++ = *src++;
     }
 
+    storing_energy = 0;
     // if (snapshot_valid) {
     //     P1OUT |= BIT5;  // Debug, restore() starts
     //     restore();
@@ -577,16 +586,24 @@ void profiling_start(uint8_t func_id) {
     // CECTL2 = (CECTL2 & (~CEREF0)) | (CEREF0 & (uint16_t) adapt_threshold);
     // CECTL2 = (CECTL2 & (~CEREF0)) | (CEREF0 & (uint16_t) PROFILING_INIT_THRESHOLD);
     // CEINT = (CEINT & (~CEIIFG) & (~CEIFG) & (~CEIIE)) | CEIE;
-    CEINT &= ~(CEIIFG | CEIFG | CEIIE| CEIE);
-    CECTL1 &= ~CEMRVL;
-    COMPARATOR_DELAY;
-    if (!(CECTL1 & CEOUT)) {
-        CEINT |= CEIE;
-        COMPARATOR_DELAY;
-        P1OUT |= BIT4;  // Debug
-        __bis_SR_register(LPM3_bits | GIE);
-        // Sleep until Vth is reached...
-    }
+
+    // CEINT &= ~(CEIIFG | CEIFG | CEIIE| CEIE);
+    // CECTL1 &= ~CEMRVL;
+    // COMPARATOR_DELAY;
+    // if (!(CECTL1 & CEOUT)) {
+    //     CEINT |= CEIE;
+    //     COMPARATOR_DELAY;
+    //     P1OUT |= BIT4;  // Debug
+    //     __bis_SR_register(LPM3_bits | GIE);
+    //     // Sleep until Vth is reached...
+    // }
+
+    storing_energy = 1;
+    set_CEREF1(adapt_threshold);
+    COMPARATOR_DELAY;  // May sleep here
+
+    set_CEREF1(TARGET_END_THRESHOLD);
+    storing_energy = 0;
 
 
     // *** Charging cycle ends, discharging cycle starts ***
