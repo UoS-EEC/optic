@@ -20,7 +20,8 @@ void dummy_function(void) {
 
 int main(void) {
     // RTCCTL13 &= ~(RTCHOLD);  // Start RTC
-    CECTL2 = (CECTL2 & (~CEREF0)) | (CEREF0 & 0x001b);
+    // CECTL2 = (CECTL2 & (~CEREF0)) | (CEREF0 & 0x001b);
+    // __delay_cycles(80);
     for (;;) {
         // P4OUT |= BIT1;  // debug
         // ADCvar = sample_vcc();

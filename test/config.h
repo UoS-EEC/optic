@@ -9,6 +9,7 @@
 #define TRACK_STACK
 
 // Indicating the maximum size of each FRAM snapshot
+#define REGISTER_SIZE   15
 #define STACK_SIZE  0x0100  // 256 bytes stack, should >= __stack_size in .ld
 // #define HEAP_SIZE   0x00A0  // 160 bytes heap, if there is heap
 #define DATA_SIZE   0x0800  // at most 2KB

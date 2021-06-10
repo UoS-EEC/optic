@@ -40,7 +40,7 @@ typedef struct AtomFuncState_s {
 AtomFuncState PERSISTENT atom_state[ATOM_FUNC_NUM];
 
 // Snapshot of core processor registers
-uint16_t PERSISTENT register_snapshot[15];
+uint16_t PERSISTENT register_snapshot[REGISTER_SIZE];
 uint16_t PERSISTENT return_address;
 
 // Snapshots of volatile memory
@@ -59,11 +59,9 @@ int16_t d_v_charge;
 int16_t d_v_discharge;
 int16_t rtc_cnt1;
 int16_t rtc_cnt2;
-float v_exe;
 uint8_t storing_energy;
 
 uint8_t PERSISTENT profiling;
-
 uint8_t PERSISTENT adapt_threshold = PROFILING_INIT_THRESHOLD;
 
 // const int16_t PERSISTENT adc_th[32] = {127, 255, 383, 511, 639, 767, 895, 1023,
@@ -71,40 +69,40 @@ uint8_t PERSISTENT adapt_threshold = PROFILING_INIT_THRESHOLD;
 //                                 2175, 2303, 2431, 2559, 2687, 2815, 2943, 3071,
 //                                 3199, 3327, 3455, 3583, 3711, 3839, 3967, 4095};
 
-const int16_t adc_th[32] = {
-  63 ,
- 191 ,
- 319 ,
- 447 ,
- 575 ,
- 703 ,
- 831 ,
- 959 ,
-1087 ,
-1215 ,
-1343 ,
-1471 ,
-1599 ,
-1727 ,
-1855 ,
-1983 ,
-2111 ,
-2239 ,
-2367 ,
-2495 ,
-2623 ,
-2751 ,
-2879 ,
-3007 ,
-3135 ,
-3263 ,
-3391 ,
-3519 ,
-3647 ,
-3775 ,
-3903 ,
-4031 ,
-};
+// const int16_t adc_th[32] = {
+//   63 ,
+//  191 ,
+//  319 ,
+//  447 ,
+//  575 ,
+//  703 ,
+//  831 ,
+//  959 ,
+// 1087 ,
+// 1215 ,
+// 1343 ,
+// 1471 ,
+// 1599 ,
+// 1727 ,
+// 1855 ,
+// 1983 ,
+// 2111 ,
+// 2239 ,
+// 2367 ,
+// 2495 ,
+// 2623 ,
+// 2751 ,
+// 2879 ,
+// 3007 ,
+// 3135 ,
+// 3263 ,
+// 3391 ,
+// 3519 ,
+// 3647 ,
+// 3775 ,
+// 3903 ,
+// 4031 ,
+// };
 
 uint16_t PERSISTENT v_exe_store[10];
 uint8_t PERSISTENT v_th_store[10];
@@ -191,8 +189,6 @@ static void rtc_init(void) {
     // RTCCTL13 &= ~(RTCHOLD);                 // Start RTC
 }
 
-
-
 static void gpio_init(void) {
     // Initialize all pins to output low to reduce power consumption
     P1OUT = 0;
@@ -238,68 +234,20 @@ static void adc12_init(void) {
     // ADC12MCTL0 = ADC12INCH_31 |
     //              ADC12VRSEL_1;  // VR+ = VREF buffered, VR- = Vss
 
-    // Use P1.2
-    P1SEL1 |= BIT2;  // Configure P1.2 for ADC
-    P1SEL0 |= BIT2;
-    ADC12MCTL0 = ADC12INCH_2  |  // Select ch A2 at P1.2
+    // // Use P1.2
+    // P1SEL1 |= BIT2;  // Configure P1.2 for ADC
+    // P1SEL0 |= BIT2;
+    // ADC12MCTL0 = ADC12INCH_2 |   // Select ch A2 at P1.2
+    //              ADC12VRSEL_1;   // VR+ = VREF buffered, VR- = Vss
+
+    // Use P3.0
+    P3SEL1 |= BIT0;
+    P3SEL0 |= BIT0;
+    ADC12MCTL0 = ADC12INCH_12 |   // Select ch A12 at P3.0
                  ADC12VRSEL_1;   // VR+ = VREF buffered, VR- = Vss
 
     ADC12IER0 = ADC12IE0;  // Enable ADC conv complete interrupt
 }
-
-// static void adc12_init(void) {
-//     /*
-//     * ADC12 Configuration
-//     *  sample and hold time  = 4 cycles
-//     *  convert time  = 10 cycles
-//     *  tot cycles = 15
-//     *  Clock: 75kHz
-//     *  ==> Sample rate = 5kHz
-//     */
-
-//     ADC12CTL0 &= ~ADC12ENC; // Stop conversion
-//     ADC12CTL0 &= ~ADC12ON;  // Turn off
-//     __no_operation();       // Delay (just in case)
-
-//     ADC12CTL0 = ADC12SHT0_0 | // 4 Cycles sample time
-//                 ADC12MSC;     // Continuous mode
-
-//     ADC12CTL1 = ADC12SSEL_0 |   // MODCLK (4.8 MHz)
-//                 ADC12PDIV_3 |   // MODCLK/64 = 75kHz Clock
-//                 ADC12SHS_0 |    // Software trigger for start of conversion
-//                 ADC12CONSEQ_2 | // Repeat Single Channel
-//                 ADC12SHP_1;     // Automatically trigger conv. after sample
-
-//     ADC12CTL2 = ADC12PWRMD_1 | // Low-power mode
-//                 ADC12RES_1 |   // 10-bit resolution
-//                 ADC12DF_0;     // Binary unsigned output
-
-//     ADC12CTL3 = ADC12BATMAP_1; // 1/2AVcc channel selected for ADC ch A31
-
-//     ADC12MCTL0 =
-//         ADC12INCH_31 | // Vcc
-//         ADC12VRSEL_1 | // High reference = REF (2.0V), low reference = AVCC
-//         ADC12WINC_1;   // Comparator window enable
-
-//     // Interrupts
-//     ADC12HI = restore_thr;
-//     ADC12LO = suspend_thr;
-//     ADC12IER2 = ADC12HIIE;
-
-//     // Configure internal reference
-//     while (REFCTL0 & REFGENBUSY)
-//     ;
-//     REFCTL0 |= REFVSEL_1 | REFON; // Select internal ref = 2.0V
-//     while (!(REFCTL0 & REFGENRDY))
-//     ;
-
-//     ADC12CTL0 |= ADC12ON; // Turn on ADC
-
-//     while (ADC12CTL1 & ADC12BUSY)
-//     ;
-//     ADC12CTL0 |= (ADC12SC | ADC12ENC); // Enable & start conversion
-// }
-
 
 // ADC12 interrupt service routine
 void __attribute__((interrupt(ADC12_B_VECTOR))) ADC12_ISR(void) {
@@ -321,6 +269,7 @@ uint16_t sample_vcc(void) {
 }
 
 static void comp_init(void) {
+    // Enable CEOUT for stability concerns
     P1DIR  |= BIT2;                 // P1.2 COUT output direction
     P1SEL1 |= BIT2;                 // Select COUT function on P1.2/COUT
 
@@ -383,7 +332,6 @@ static void comp_init(void) {
             //  CERDYIE;  // Ready interrupt enabled
 
     CECTL1 |= CEON;  // Turn On Comparator_E
-    __delay_cycles(75);
 }
 
 // resistor_tap should be from 0 to 31
@@ -448,19 +396,18 @@ iclib_boot() {
     // Minimized initialization stack for wakeup
     // to avoid being stuck in boot & fail)
     gpio_init();
-    // adc12_init();
+    adc12_init();
     comp_init();
 
     P1OUT |= BIT4;  // Debug
-    __bis_SR_register(LPM3_bits | GIE);  // Enter LPM4 with interrupts enabled
+    __bis_SR_register(LPM3_bits | GIE);  // Enter LPM3 with interrupts enabled
     // Processor sleeps
     // ...
-    // Processor wakes up after interrupt (Hi V threshold hit)
+    // Processor wakes up after interrupt (Hi Vth hit)
 
     clock_init();
-    // rtc_init();
+    rtc_init();
 
-    // __bic_SR_register(GIE);              // Disable interrupts during startup
     // Remaining initialization stack for normal execution
 
     // Boot functions that are mapped to ram (most importantly fastmemcpy)
@@ -487,7 +434,6 @@ iclib_boot() {
     fastmemcpy(&__datastart, &__romdatastart, &__dataend - &__datastart);
 
     __set_SP_register(&__stackend);  // Runtime stack
-    // __bis_SR_register(GIE);
 
     int main();  // Suppress implicit decl. warning
     main();
@@ -569,49 +515,29 @@ iclib_boot() {
 
 
 void profiling_start(uint8_t func_id) {
-    // Take a Vcc reading
-    // adc_r1 = sample_vcc();
-
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit...
     // Continue directly if (Vcc > adapt_threshold)...
-    // Vcc < Vth, Sleep and store energy
 
     // *** Charging cycle starts ***
-    // // Clear and start RTC
-    // RTCCNT12 = 0;
-    // RTCCTL13 &= ~(RTCHOLD);  // Start RTC
+    // Take a Vcc reading
+    adc_r1 = sample_vcc();
+    // Clear and start RTC
+    RTCCNT12 = 0;
+    RTCCTL13 &= ~(RTCHOLD);  // Start RTC
 
     // Sleep and wait for energy recharged
-    // set_CEREF0(adapt_threshold);  // Resume threshold
-    // CECTL2 = (CECTL2 & (~CEREF0)) | (CEREF0 & (uint16_t) adapt_threshold);
-    // CECTL2 = (CECTL2 & (~CEREF0)) | (CEREF0 & (uint16_t) PROFILING_INIT_THRESHOLD);
-    // CEINT = (CEINT & (~CEIIFG) & (~CEIFG) & (~CEIIE)) | CEIE;
-
-    // CEINT &= ~(CEIIFG | CEIFG | CEIIE| CEIE);
-    // CECTL1 &= ~CEMRVL;
-    // COMPARATOR_DELAY;
-    // if (!(CECTL1 & CEOUT)) {
-    //     CEINT |= CEIE;
-    //     COMPARATOR_DELAY;
-    //     P1OUT |= BIT4;  // Debug
-    //     __bis_SR_register(LPM3_bits | GIE);
-    //     // Sleep until Vth is reached...
-    // }
-
     storing_energy = 1;
     set_CEREF1(adapt_threshold);
-    COMPARATOR_DELAY;  // May sleep here
-
+    COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
     set_CEREF1(TARGET_END_THRESHOLD);
     storing_energy = 0;
 
-
     // *** Charging cycle ends, discharging cycle starts ***
-    // // Take a Vcc reading, get Delta V_charge
-    // adc_r2 = sample_vcc();
-    // d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
-    // // Take a time reading, get T_charge
-    // rtc_cnt1 = RTCCNT12;  // T_charge
+    // Take a time reading, get T_charge
+    rtc_cnt1 = RTCCNT12;  // T_charge
+    // Take a Vcc reading, get Delta V_charge
+    adc_r2 = sample_vcc();
+    d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
 
     // Run the atomic function...
 }
@@ -620,15 +546,15 @@ void profiling_end(uint8_t func_id) {
     // ...Atomic function ends
     // *** Discharging cycle ends ***
 
-    // // Take a Vcc reading, get Delta V_exe
-    // adc_r1 = sample_vcc();
-    // d_v_discharge = (int16_t) adc_r1 - (int16_t) adc_r2;
+    // Take a Vcc reading, get Delta V_exe
+    adc_r1 = sample_vcc();
+    d_v_discharge = (int16_t) adc_r1 - (int16_t) adc_r2;
 
-    // // Take a time reading, get T_exe
-    // rtc_cnt2 = RTCCNT12 - rtc_cnt1;  // T_exe
+    // Take a time reading, get T_exe
+    rtc_cnt2 = RTCCNT12 - rtc_cnt1;  // T_exe
 
-    // // Stop RTC
-    // RTCCTL13 |= RTCHOLD;
+    // Stop RTC
+    RTCCTL13 |= RTCHOLD;
 
     // Adapt the next threshold
     // v_exe = ((float) rtc_cnt2 / rtc_cnt1 * d_v_charge - d_v_discharge);
