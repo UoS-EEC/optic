@@ -59,6 +59,7 @@ int16_t d_v_charge;
 int16_t d_v_discharge;
 int16_t rtc_cnt1;
 int16_t rtc_cnt2;
+float v_exe;
 uint8_t storing_energy;
 
 uint8_t PERSISTENT profiling;
@@ -69,43 +70,9 @@ uint8_t PERSISTENT adapt_threshold = PROFILING_INIT_THRESHOLD;
 //                                 2175, 2303, 2431, 2559, 2687, 2815, 2943, 3071,
 //                                 3199, 3327, 3455, 3583, 3711, 3839, 3967, 4095};
 
-// const int16_t adc_th[32] = {
-//   63 ,
-//  191 ,
-//  319 ,
-//  447 ,
-//  575 ,
-//  703 ,
-//  831 ,
-//  959 ,
-// 1087 ,
-// 1215 ,
-// 1343 ,
-// 1471 ,
-// 1599 ,
-// 1727 ,
-// 1855 ,
-// 1983 ,
-// 2111 ,
-// 2239 ,
-// 2367 ,
-// 2495 ,
-// 2623 ,
-// 2751 ,
-// 2879 ,
-// 3007 ,
-// 3135 ,
-// 3263 ,
-// 3391 ,
-// 3519 ,
-// 3647 ,
-// 3775 ,
-// 3903 ,
-// 4031 ,
-// };
-
-uint16_t PERSISTENT v_exe_store[10];
-uint8_t PERSISTENT v_th_store[10];
+uint16_t PERSISTENT v_exe_10[10];
+uint16_t PERSISTENT v_exe_mean;
+// uint8_t PERSISTENT v_th_store[10];
 uint8_t i = 0;
 
 void __attribute__((section(".ramtext"), naked))
@@ -220,7 +187,7 @@ static void adc12_init(void) {
     // 2.0 V reference selected, comment this to use 1.2V
     // REFCTL0 |= REFVSEL_1;
 
-    ADC12CTL0 = ADC12SHT0_0 |  // 4 cycles sample and hold time
+    ADC12CTL0 = ADC12SHT0_2 |  // 16 cycles sample and hold time
                 ADC12ON;       // ADC12 on
     ADC12CTL1 = ADC12PDIV_1 |  // Predivide by 4, from ~4.8MHz MODOSC
                 ADC12SHP;      // SAMPCON is from the sampling timer
@@ -439,91 +406,73 @@ iclib_boot() {
     main();
 }
 
+// Connect supply profiling
 // void profiling_start(uint8_t func_id) {
-//     // Take a Vcc reading
-//     adc_r1 = sample_vcc();
-
 //     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit...
 //     // Continue directly if (Vcc > adapt_threshold)...
-//     if (adc_r1 > adc_th[adapt_threshold]) {
-//         // Vcc > Vth, Continue
-//         profiling = 0;
-//     } else {
-//         // Vcc < Vth, Sleep and store energy
-//         profiling = 1;
-//         // __bic_SR_register(GIE);  // Disable global interrupt
 
-//         // *** Charging cycle starts ***
-//         // // Clear and start RTC
-//         // RTCCNT12 = 0;
-//         // RTCCTL13 &= ~(RTCHOLD);  // Start RTC
+//     // *** Charging cycle starts ***
+//     // Take a Vcc reading
+//     adc_r1 = sample_vcc();
+//     // Clear and start RTC
+//     RTCCNT12 = 0;
+//     RTCCTL13 &= ~(RTCHOLD);  // Start RTC
 
-//         // Sleep and wait for energy recharged
-//         // set_CEREF0(adapt_threshold);  // Resume threshold
-//         CECTL2 = (CECTL2 & (~CEREF0)) | (CEREF0 & (uint16_t) adapt_threshold);
-//         CEINT = (CEINT & (~CEIIFG) & (~CEIFG) & (~CEIIE)) | CEIE;
-//         CECTL1 |= CEMRVS;
-//         __delay_cycles(75);
-//         P1OUT |= BIT4;  // Debug
-//         __bis_SR_register(LPM3_bits | GIE);
-//         // Sleep until Vth is reached...
+//     // Sleep and wait for energy recharged
+//     storing_energy = 1;
+//     set_CEREF1(adapt_threshold);
+//     COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
+//     set_CEREF1(TARGET_END_THRESHOLD);
+//     storing_energy = 0;
 
-//         // *** Charging cycle ends, discharging cycle starts ***
-//         // // Take a Vcc reading, get Delta V_charge
-//         // adc_r2 = sample_vcc();
-//         // d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
-//         // // Take a time reading, get T_charge
-//         // rtc_cnt1 = RTCCNT12;  // T_charge
-//     }
+//     // *** Charging cycle ends, discharging cycle starts ***
+//     // Take a time reading, get T_charge
+//     rtc_cnt1 = RTCCNT12;  // T_charge
+//     // Take a Vcc reading, get Delta V_charge
+//     adc_r2 = sample_vcc();
+//     d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
 
-//     // __bic_SR_register(GIE);  // Disable global interrupt
 //     // Run the atomic function...
 // }
 
 // void profiling_end(uint8_t func_id) {
 //     // ...Atomic function ends
 //     // *** Discharging cycle ends ***
-//     // __bis_SR_register(GIE);  // Enable global interrupt
 
-//     if (profiling) {
-//         // // Take a Vcc reading, get Delta V_exe
-//         // adc_r1 = sample_vcc();
-//         // d_v_discharge = (int16_t) adc_r1 - (int16_t) adc_r2;
+//     // Take a Vcc reading, get Delta V_exe
+//     adc_r1 = sample_vcc();
+//     d_v_discharge = (int16_t) adc_r1 - (int16_t) adc_r2;
 
-//         // // Take a time reading, get T_exe
-//         // rtc_cnt2 = RTCCNT12 - rtc_cnt1;  // T_exe
+//     // Take a time reading, get T_exe
+//     rtc_cnt2 = RTCCNT12 - rtc_cnt1;  // T_exe
 
-//         // // Stop RTC
-//         // RTCCTL13 |= RTCHOLD;
+//     // Stop RTC
+//     RTCCTL13 |= RTCHOLD;
 
-//         // Adapt the next threshold
-//         // v_exe = ((float) rtc_cnt2 / rtc_cnt1 * d_v_charge - d_v_discharge);
-//         // adapt_threshold = (uint8_t) (v_exe / MAX_ADC_READING * MAX_COMPE_RTAP) + TARGET_END_THRESHOLD;
-//         // if (adapt_threshold > 31) {
-//         //     adapt_threshold = 31;
-//         // }
-//         // v_exe_store[i] = (uint16_t) v_exe;
-//         // v_th_store[i] = adapt_threshold;
-//         // if (++i == 10) {
-//         //     i = 0;
-//         // }
-//         if (++adapt_threshold > 31) {
-//             adapt_threshold = 20;
-//         }
+//     // Adapt the next threshold
+//     v_exe = ((float) rtc_cnt2 / rtc_cnt1 * d_v_charge - d_v_discharge);
+//     // adapt_threshold = (uint8_t) (v_exe / MAX_ADC_READING * MAX_COMPE_RTAP) + TARGET_END_THRESHOLD;
+//     // if (adapt_threshold > 31) {
+//     //     adapt_threshold = 31;
+//     // }
+//     v_exe_10[i] = (uint16_t) v_exe;
+//     // v_th_store[i] = adapt_threshold;
+//     if (++i == 10) {
+//         i = 0;
 //     }
+//     v_exe_mean = 0;
+//     for (uint8_t k = 0; k < 10; ++k) {
+//         v_exe_mean += v_exe_10[k];
+//     }
+//     v_exe_mean /= 10;
 // }
 
 
+
+// Disconnect supply profiling
 void profiling_start(uint8_t func_id) {
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit...
     // Continue directly if (Vcc > adapt_threshold)...
-
-    // *** Charging cycle starts ***
-    // Take a Vcc reading
-    adc_r1 = sample_vcc();
-    // Clear and start RTC
-    RTCCNT12 = 0;
-    RTCCTL13 &= ~(RTCHOLD);  // Start RTC
 
     // Sleep and wait for energy recharged
     storing_energy = 1;
@@ -533,11 +482,10 @@ void profiling_start(uint8_t func_id) {
     storing_energy = 0;
 
     // *** Charging cycle ends, discharging cycle starts ***
-    // Take a time reading, get T_charge
-    rtc_cnt1 = RTCCNT12;  // T_charge
+    // Disconnect supply
+    P1OUT |= BIT5;
     // Take a Vcc reading, get Delta V_charge
     adc_r2 = sample_vcc();
-    d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
 
     // Run the atomic function...
 }
@@ -545,30 +493,20 @@ void profiling_start(uint8_t func_id) {
 void profiling_end(uint8_t func_id) {
     // ...Atomic function ends
     // *** Discharging cycle ends ***
-
+    // Reconnect supply
+    P1OUT &= ~BIT5;
     // Take a Vcc reading, get Delta V_exe
     adc_r1 = sample_vcc();
-    d_v_discharge = (int16_t) adc_r1 - (int16_t) adc_r2;
+    d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
 
-    // Take a time reading, get T_exe
-    rtc_cnt2 = RTCCNT12 - rtc_cnt1;  // T_exe
-
-    // Stop RTC
-    RTCCTL13 |= RTCHOLD;
-
-    // Adapt the next threshold
-    // v_exe = ((float) rtc_cnt2 / rtc_cnt1 * d_v_charge - d_v_discharge);
-    // adapt_threshold = (uint8_t) (v_exe / MAX_ADC_READING * MAX_COMPE_RTAP) + TARGET_END_THRESHOLD;
-    // if (adapt_threshold > 31) {
-    //     adapt_threshold = 31;
-    // }
-    // v_exe_store[i] = (uint16_t) v_exe;
+    v_exe_10[i] = (uint16_t) d_v_discharge;
     // v_th_store[i] = adapt_threshold;
-    // if (++i == 10) {
-    //     i = 0;
-    // }
-
-    // if (++adapt_threshold > 31) {
-    //     adapt_threshold = 20;
-    // }
+    if (++i == 10) {
+        i = 0;
+    }
+    v_exe_mean = 0;
+    for (uint8_t k = 0; k < 10; ++k) {
+        v_exe_mean += v_exe_10[k];
+    }
+    v_exe_mean /= 10;
 }
