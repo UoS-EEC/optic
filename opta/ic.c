@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 #include <msp430fr5994.h>
-#include "lib/ic.h"
-#include "lib/config.h"
+#include "opta/ic.h"
+#include "opta/config.h"
 
 
 extern uint8_t __datastart, __dataend, __romdatastart;  // , __romdatacopysize;

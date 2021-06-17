@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-set(TARGET_NAME "optalib")
+set(TARGET_NAME "opta")
 
 add_library(
     ${TARGET_NAME}

@@ -29,10 +29,10 @@ target_compile_options(
     PRIVATE -O0
     PRIVATE -msmall
     PRIVATE -g 
-    # PRIVATE -mhwmult=none
-    PRIVATE -mhwmult=f5series
+    PRIVATE -mhwmult=auto
     PRIVATE -Wall
     PRIVATE -fno-zero-initialized-in-bss  # We don't want to zero out whole bss on every boot
+    # PRIVATE -flto  # Link-time optimization
 )
 
 # linker
@@ -41,12 +41,14 @@ target_link_directories(
     PRIVATE ${MSP430_GCC_DIR}/include
     PRIVATE ${MSP430_GCC_DIR}/msp430-elf/lib/
     PRIVATE ${MSP430_GCC_DIR}/lib/gcc/msp430-elf/9.2.0
+    PRIVATE ${PROJECT_SOURCE_DIR}/lib
 )
 
-# target_link_libraries(
-#     ${TARGET_NAME}
-#     PUBLIC optalib
-# )
+target_link_libraries(
+    ${TARGET_NAME}
+    # PUBLIC opta
+    PRIVATE IQmathLib_extracted
+)
 
 target_link_options(
     ${TARGET_NAME}

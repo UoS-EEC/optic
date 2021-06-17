@@ -5,7 +5,7 @@
 #include <msp430fr5994.h>
 #include "aes/aesa.h"
 
-#include "lib/ic.h"
+#include "opta/ic.h"
 
 // AES accelerator, cipher block chain mode
 void aes_128_enc(uint8_t* key, uint8_t* iv, uint8_t* plaintext,

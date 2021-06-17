@@ -11,8 +11,6 @@ add_executable(
     main.c
     aesa.c
     aesa.h
-    # ic.c
-    # ic.h
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES SUFFIX ".elf")
@@ -20,7 +18,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES SUFFIX ".elf")
 target_include_directories(
     ${TARGET_NAME} 
     PRIVATE ${MSP430_GCC_DIR}/include
-    PRIVATE ${PROJECT_SOURCE_DIR}/lib
+    PRIVATE ${PROJECT_SOURCE_DIR}/opta
 )
 
 target_compile_options(
@@ -46,7 +44,7 @@ target_link_directories(
 
 target_link_libraries(
     ${TARGET_NAME}
-    PUBLIC optalib
+    PUBLIC opta
 )
 
 target_link_options(

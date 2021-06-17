@@ -5,6 +5,7 @@
 #include <msp430fr5994.h>
 #include "test/ic.h"
 #include "test/config.h"
+#include "lib/IQmathLib.h"
 
 #define COMPARATOR_DELAY    __delay_cycles(80)
 
@@ -187,13 +188,18 @@ static void adc12_init(void) {
     // 2.0 V reference selected, comment this to use 1.2V
     // REFCTL0 |= REFVSEL_1;
 
-    ADC12CTL0 = ADC12SHT0_2 |  // 16 cycles sample and hold time
-                ADC12ON;       // ADC12 on
-    ADC12CTL1 = ADC12PDIV_1 |  // Predivide by 4, from ~4.8MHz MODOSC
-                ADC12SHP;      // SAMPCON is from the sampling timer
-    // ADC12CTL2 = 0;  // 8-bit conversion result resolution, 10 cycles
-    ADC12CTL2 = ADC12RES_2 |   // Default 12-bit conversion results, 14cycles conversion time
-                ADC12PWRMD_1;  // Low-power mode
+    // By default, REFMSTR=1 => REFCTL is used to configure the internal reference
+    // while (REFCTL0 & REFGENBUSY) {}         // If ref generator busy, WAIT
+    // REFCTL0 |= REFVSEL_0 | REFON;           // Select internal ref = 1.2V
+                                            // Internal Reference ON
+
+    ADC12CTL0 = ADC12SHT0_2 |   // 16 cycles sample and hold time
+                ADC12ON;        // ADC12 on
+    ADC12CTL1 = ADC12PDIV_1 |   // Predivide by 4, from ~4.8MHz MODOSC
+                ADC12SHP;       // SAMPCON is from the sampling timer
+    // ADC12CTL2 = 0;             // 8-bit conversion result resolution, 10 cycles
+    ADC12CTL2 = ADC12RES_2 |    // Default 12-bit conversion results, 14cycles conversion time
+                ADC12PWRMD_1;   // Low-power mode
 
 
     // Use battery monitor (1/2 AVcc)
@@ -210,9 +216,9 @@ static void adc12_init(void) {
     // Use P3.0
     P3SEL1 |= BIT0;
     P3SEL0 |= BIT0;
-    ADC12MCTL0 = ADC12INCH_12 |   // Select ch A12 at P3.0
-                 ADC12VRSEL_1;   // VR+ = VREF buffered, VR- = Vss
-
+    ADC12MCTL0 = ADC12INCH_12|      // Select ch A12 at P3.0
+                 ADC12VRSEL_1;      // VR+ = VREF buffered, VR- = Vss
+    // while (!(REFCTL0 & REFGENRDY)) {}   // Wait for reference generator to settle
     ADC12IER0 = ADC12IE0;  // Enable ADC conv complete interrupt
 }
 
@@ -408,8 +414,8 @@ iclib_boot() {
 
 // Connect supply profiling
 // void profiling_start(uint8_t func_id) {
-//     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit...
-//     // Continue directly if (Vcc > adapt_threshold)...
+//     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
+//     // ..or continue directly if (Vcc > adapt_threshold)
 
 //     // *** Charging cycle starts ***
 //     // Take a Vcc reading
@@ -451,15 +457,19 @@ iclib_boot() {
 
 //     // Adapt the next threshold
 //     v_exe = ((float) rtc_cnt2 / rtc_cnt1 * d_v_charge - d_v_discharge);
+
 //     // adapt_threshold = (uint8_t) (v_exe / MAX_ADC_READING * MAX_COMPE_RTAP) + TARGET_END_THRESHOLD;
 //     // if (adapt_threshold > 31) {
 //     //     adapt_threshold = 31;
 //     // }
+
 //     v_exe_10[i] = (uint16_t) v_exe;
 //     // v_th_store[i] = adapt_threshold;
+
 //     if (++i == 10) {
 //         i = 0;
 //     }
+
 //     v_exe_mean = 0;
 //     for (uint8_t k = 0; k < 10; ++k) {
 //         v_exe_mean += v_exe_10[k];

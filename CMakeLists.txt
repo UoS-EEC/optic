@@ -19,4 +19,4 @@ include_directories(${CMAKE_SOURCE_DIR})
 
 add_subdirectory(aes)
 add_subdirectory(test)
-add_subdirectory(lib)
+add_subdirectory(opta)
