@@ -2,8 +2,8 @@
 // All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#ifndef LIB_IC_H_
-#define LIB_IC_H_
+#ifndef OPTA_IC_H_
+#define OPTA_IC_H_
 
 #include <stdint.h>
 #include <stddef.h>
@@ -11,11 +11,9 @@
 void atom_func_start(uint8_t func_id);
 void atom_func_end(uint8_t func_id);
 
-uint16_t sample_vcc(void);
-
-// configs
+// Configs
 #define AES_128_ENC      0
 #define AES_128_DEC      1
 #define ATOM_FUNC_NUM    2
 
-#endif  // LIB_IC_H_
+#endif  // OPTA_IC_H_

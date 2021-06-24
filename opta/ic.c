@@ -7,6 +7,8 @@
 #include "opta/config.h"
 
 
+#define COMPARATOR_DELAY    __delay_cycles(80)
+
 extern uint8_t __datastart, __dataend, __romdatastart;  // , __romdatacopysize;
 extern uint8_t __bootstackend;
 extern uint8_t __bssstart, __bssend;
@@ -44,20 +46,36 @@ uint8_t PERSISTENT stack_snapshot[STACK_SIZE];
 // uint8_t PERSISTENT heap_snapshot[HEAP_SIZE];
 
 uint8_t PERSISTENT snapshot_valid = 0;
-uint8_t PERSISTENT suspending;  // from hibernate: 1, from restore: 0
+uint8_t PERSISTENT suspending;  // from backup: 1, from restore: 0
 
-
+volatile uint16_t adc_reading;  // Used by ADC ISR
 uint16_t adc_r1;
 uint16_t adc_r2;
 
-uint16_t adc_reading;
-uint16_t adc_reading_last;
+#ifdef FLOAT_POINT_ARITHMETIC
+int16_t d_v_charge;
+int16_t d_v_discharge;
+int16_t rtc_cnt1;
+int16_t rtc_cnt2;
+float v_exe;
+#else
+uint32_t d_v_charge;
+uint32_t d_v_discharge;
+uint32_t rtc_cnt1;
+uint32_t rtc_cnt2;
+uint32_t v_exe;
+#endif
 
-uint16_t rtc_count;
-uint16_t rtc_count_last;
+uint8_t storing_energy;
+
+uint8_t PERSISTENT profiling;
+uint8_t PERSISTENT adapt_threshold = PROFILING_INIT_THRESHOLD;
+uint16_t PERSISTENT v_exe_history[V_EXE_HISTORY_SIZE];
+uint16_t PERSISTENT v_exe_mean = 0;
+uint8_t i = 0;
 
 // Function declarations
-static void hibernate(void);
+static void backup(void);
 static void restore(void);
 
 void __attribute__((section(".ramtext"), naked))
@@ -84,262 +102,7 @@ fastmemcpy(uint8_t *dst, uint8_t *src, size_t len) {
             "  ret     \n");
 }
 
-static void clock_init(void) {
-    CSCTL0_H = CSKEY_H;  // Unlock register
-    CSCTL1 |= DCOFSEL_6;  // DCO 8MHz
-
-    // Set ACLK = LFXT(if enabled)/VLO; SMCLK = DCO; MCLK = DCO;
-    CSCTL2 = SELA_0 + SELS_3 + SELM_3;
-
-    // ACLK: Source/1; SMCLK: Source/1; MCLK: Source/1;
-    CSCTL3 = DIVA_0 + DIVS_0 + DIVM_0;  // SMCLK = MCLK = 8 MHz
-
-    // LFXT 32kHz crystal for RTC
-    PJSEL0 = BIT4 | BIT5;                   // Initialize LFXT pins
-    CSCTL4 &= ~LFXTOFF;                     // Enable LFXT
-    do {
-      CSCTL5 &= ~LFXTOFFG;                  // Clear LFXT fault flag
-      SFRIFG1 &= ~OFIFG;
-    } while (SFRIFG1 & OFIFG);              // Test oscillator fault flag
-
-    CSCTL0_H = 0;  // Lock Register
-}
-
-static void rtc_init(void) {
-    // Setup RTC Timer
-    RTCCTL0_H = RTCKEY_H;                   // Unlock RTC
-    RTCCTL13 = RTCHOLD;  // Counter Mode, clocked from 32-kHz crystal
-    // RTCCTL13 &= ~(RTCHOLD);                 // Start RTC
-}
-
-static void gpio_init(void) {
-    // Initialize all pins to output low to reduce power consumption
-    P1OUT = 0;
-    P1DIR = 0xff;
-    P2OUT = 0;
-    P2DIR = 0xff;
-    P3OUT = 0;
-    P3DIR = 0xff;
-    P4OUT = 0;
-    P4DIR = 0xff;
-    P7OUT = 0;
-    P7DIR = 0xff;
-    P8OUT = 0;
-    P8DIR = 0xff;
-    PJOUT = 0;
-    PJDIR = 0xff;
-
-    // Disable GPIO power-on default high-impedance mode
-    PM5CTL0 &= ~LOCKLPM5;
-}
-
-static void adc12_init(void) {
-    // Configure ADC12
-
-    // 2.0 V reference selected, comment this to use 1.2V
-    // REFCTL0 |= REFVSEL_1;
-
-    ADC12CTL0 = ADC12SHT0_2 |  // 16 cycles sample and hold time
-                ADC12ON;       // ADC12 on
-    ADC12CTL1 = ADC12PDIV_0 |  // Predivide by 1, from ~4.8MHz MODOSC
-                ADC12SHP;      // SAMPCON is from the sampling timer
-
-    // Default 12bit conversion results, 14cycles conversion time
-    // ADC12CTL2 = ADC12RES_2;  // Default
-
-    // Use battery monitor (1/2 AVcc)
-    // ADC12CTL3 = ADC12BATMAP;  // 1/2AVcc channel selected for ADC ch A31
-    // ADC12MCTL0 = ADC12INCH_31 |
-    //              ADC12VRSEL_1;  // VR+ = VREF buffered, VR- = Vss
-
-    // Use P1.2
-    P1SEL1 |= BIT2;  // Configure P1.2 for ADC
-    P1SEL0 |= BIT2;
-    ADC12MCTL0 = ADC12INCH_2  |  // Select ch A2 at P1.2
-                 ADC12VRSEL_1;   // VR+ = VREF buffered, VR- = Vss
-
-    ADC12IER0 = ADC12IE0;  // Enable ADC conv complete interrupt
-}
-
-// ADC12 interrupt service routine
-void __attribute__((interrupt(ADC12_B_VECTOR))) ADC12_ISR(void) {
-    switch (__even_in_range(ADC12IV, ADC12IV__ADC12RDYIFG)) {
-        case ADC12IV__ADC12IFG0:            // Vector 12:  ADC12MEM0
-            // Result is stored in ADC12MEM0
-            __bic_SR_register_on_exit(LPM0_bits);
-            break;
-        default: break;
-    }
-}
-
-// Take ~68us
-uint16_t sample_vcc(void) {
-    ADC12CTL0 |= ADC12ENC | ADC12SC;  // start sampling & conversion
-    __bis_SR_register(LPM0_bits | GIE);
-    return ADC12MEM0;
-}
-
-static void comp_init(void) {
-    // P1DIR  |= BIT2;                 // P1.2 COUT output direction
-    // P1SEL1 |= BIT2;                 // Select COUT function on P1.2/COUT
-
-    // Setup Comparator_E
-
-    // CECTL1 = CEPWRMD_1|             // Normal power mode
-    //          CEF      |
-    //          CEFDLY_3 ;
-    CECTL1 =  // CEMRVS   |  // CMRVL selects the Vref - default VREF0
-             CEPWRMD_2|  // 1 for Normal power mode / 2 for Ultra-low power mode
-             CEF      |  // Output filter enabled
-             CEFDLY_3;   // Output filter delay 3600 ns
-            // CEMRVL = 0 by default, select VREF0
-
-    CECTL2 = CEREFACC |  // Enable (low-power low-accuracy) clocked mode (can be overwritten by ADC static mode)
-             CEREFL_1 |  // VREF 1.2 V is selected
-             CERS_2   |  // VREF applied to R-ladder
-             CERSEL   |  // to -terminal
-             CEREF04 | CEREF02 | CEREF01 | CEREF00|  // Hi V_th, 23(10111)
-             CEREF14 | CEREF11 | CEREF10;  // Lo V_th, 19(10011)
-            // CEREF_n : V threshold (Volt)
-            //  0 : 0.1125
-            //  1 : 0.2250
-            //  2 : 0.3375
-            //  3 : 0.4500
-            //  4 : 0.5625
-            //  5 : 0.6750
-            //  6 : 0.7875
-            //  7 : 0.9000
-            //  8 : 1.0125
-            //  9 : 1.1250
-            // 10 : 1.2375
-            // 11 : 1.3500
-            // 12 : 1.4625
-            // 13 : 1.5750
-            // 14 : 1.6875
-            // 15 : 1.8000
-            // 16 : 1.9125
-            // 17 : 2.0250
-            // 18 : 2.1375
-            // 19 : 2.2500
-            // 20 : 2.3625
-            // 21 : 2.4750
-            // 22 : 2.5875
-            // 23 : 2.7000
-            // 24 : 2.8125
-            // 25 : 2.9250
-            // 26 : 3.0375
-            // 27 : 3.1500
-            // 28 : 3.2625
-            // 29 : 3.3750
-            // 30 : 3.4875
-            // 31 : 3.6000
-
-    // Set up internal Vref (No use)
-    // while (REFCTL0 & REFGENBUSY);
-    // REFCTL0 |= REFVSEL_0 | REFON;  // Select internal Vref (VR+) = 1.2V  Internal Reference ON
-    // while (!(REFCTL0 & REFBGRDY));  // Wait for reference generator to settle
-
-    // Channel selection
-    P3SEL1 |= BIT0;  // P3.0/C12 for Vcompare
-    P3SEL0 |= BIT0;
-    CECTL0 = CEIPEN | CEIPSEL_12;   // Enable V+, input channel C12/P3.0
-    CECTL3 |= CEPD12;  // Input Buffer Disable @P3.0/C12 (also set by the last line)
-
-    // P1SEL1 |= BIT2;  // P1.2/C2 for Vcompare
-    // P1SEL0 |= BIT2;
-    // CECTL0 = CEIPEN | CEIPSEL_2;    // Enable V+, input channel C2/P1.2
-    // CECTL3 |= CEPD2;  // Input Buffer Disable @P1.2/C2 (also set by the last line)
-
-    CEINT  = CEIE;  // Interrupt enabled
-            //  CEIIE;  // Inverted interrupt enabled
-            //  CERDYIE;  // Ready interrupt enabled
-
-    CECTL1 |= CEON;  // Turn On Comparator_E
-}
-
-// Comparator E interrupt service routine, Hibernus
-void __attribute__((interrupt(COMP_E_VECTOR))) Comp_ISR(void) {
-    switch (__even_in_range(CEIV, CEIV_CERDYIFG)) {
-        case CEIV_NONE: break;
-        case CEIV_CEIFG:
-            CEINT = (CEINT & ~CEIFG & ~CEIIFG & ~CEIE) | CEIIE;
-            // CECTL1 |= CEMRVL;
-
-            P1OUT &= ~BIT4;  // debug
-            __bic_SR_register_on_exit(LPM3_bits);
-            break;
-        case CEIV_CEIIFG:
-            CEINT = (CEINT & ~CEIIFG & ~CEIFG & ~CEIIE) | CEIE;
-            // CECTL1 &= ~CEMRVL;
-
-            hibernate();
-            if (suspending) {
-                P1OUT |= BIT4;  // Debug
-                __bis_SR_register_on_exit(LPM3_bits | GIE);
-            } else {
-                P1OUT &= ~BIT5;  // Debug, come back from restore()
-                __bic_SR_register_on_exit(LPM3_bits);
-            }
-            break;
-        // case CEIV_CERDYIFG:
-        //     CEINT &= ~CERDYIFG;
-        //     break;
-        default: break;
-    }
-}
-
-// Boot function
-void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0")))
-iclib_boot() {
-    WDTCTL = WDTPW | WDTHOLD;            // Stop watchdog timer
-    __set_SP_register(&__bootstackend);  // Boot stack
-    __bic_SR_register(GIE);              // Disable interrupts during startup
-
-    // Only essential initialization stack for wakeup
-    // ..to avoid being stuck in boot & fail
-    gpio_init();
-    comp_init();
-
-    P1OUT |= BIT4;  // Debug
-    __bis_SR_register(LPM4_bits | GIE);  // Enter LPM4 with interrupts enabled
-    // Processor sleeps
-    // ...
-    // Processor wakes up after interrupt (Hi V threshold hit)
-
-    // Remaining initialization stack for normal execution
-    clock_init();
-    rtc_init();
-    adc12_init();
-
-    // Boot functions that are mapped to ram (most importantly fastmemcpy)
-    uint8_t *dst = &__ramtext_low;
-    uint8_t *src = &__ramtext_loadLow;
-    size_t len = &__ramtext_high - &__ramtext_low;
-    while (len--) {
-        *dst++ = *src++;
-    }
-
-    if (snapshot_valid) {
-        P1OUT |= BIT5;  // Debug, restore() starts
-        restore();
-        // Does not return here!!!
-        // Return to the next line of hibernate()...
-    } else {
-        // snapshot_valid = 0 when
-        // previous snapshot failed or 1st boot (both rare)
-        // Normal boot...
-    }
-
-    // Load .data to RAM
-    fastmemcpy(&__datastart, &__romdatastart, &__dataend - &__datastart);
-
-    __set_SP_register(&__stackend);  // Runtime stack
-
-    int main();  // Suppress implicit decl. warning
-    main();
-}
-
-static void hibernate(void) {
+static void backup(void) {
     // !!! *** DONT TOUCH THE STACK HERE *** !!!
 
     // copy Core registers to FRAM
@@ -361,7 +124,7 @@ static void hibernate(void) {
             "mov   r15, &register_snapshot+28\n");
 
 
-    // Return to the next line of Hibernate();
+    // Return to the next line of backup();
     return_address = *(uint16_t *)(__get_SP_register());
 
     // Save a snapshot of volatile memory
@@ -407,7 +170,7 @@ static void restore(void) {
     snapshot_valid = 0;
     /* comment "snapshot_valid = 0"
        for being able to restore from an old snapshot
-       if Hibernate() fails to complete
+       if backup() fails to complete
        Here, introducing code re-execution? */
 
     suspending = 0;
@@ -462,6 +225,410 @@ static void restore(void) {
     *(uint16_t *)(__get_SP_register()) = return_address;
 }
 
+static void clock_init(void) {
+    CSCTL0_H = CSKEY_H;  // Unlock register
+    CSCTL1 |= DCOFSEL_6;  // DCO 8MHz
+
+    // Set ACLK = LFXT(if enabled)/VLO; SMCLK = DCO; MCLK = DCO;
+    CSCTL2 = SELA_0 + SELS_3 + SELM_3;
+
+    // ACLK: Source/1; SMCLK: Source/1; MCLK: Source/1;
+    CSCTL3 = DIVA_0 + DIVS_0 + DIVM_0;      // SMCLK = MCLK = 8 MHz
+
+    // LFXT 32kHz crystal for RTC
+    PJSEL0 = BIT4 | BIT5;                   // Initialize LFXT pins
+    CSCTL4 &= ~LFXTOFF;                     // Enable LFXT
+    do {
+      CSCTL5 &= ~LFXTOFFG;                  // Clear LFXT fault flag
+      SFRIFG1 &= ~OFIFG;
+    } while (SFRIFG1 & OFIFG);              // Test oscillator fault flag
+
+    CSCTL0_H = 0;  // Lock Register
+}
+
+// RTC Counter mode setup, directly clocked from 32-kHz crystal
+static void rtc_init(void) {
+    // Setup RTC Timer
+    RTCCTL0_H = RTCKEY_H;                   // Unlock RTC
+    RTCCTL13 = RTCTEV_3 | RTCHOLD;  // Counter Mode, clocked from 32-kHz crystal
+    // ..32-bit ovf (but not used)
+
+    // RTCCTL13 &= ~(RTCHOLD);                 // Start RTC
+}
+
+static void gpio_init(void) {
+    // Initialize all pins to output low to reduce power consumption
+    P1OUT = 0;
+    P1DIR = 0xff;
+    P2OUT = 0;
+    P2DIR = 0xff;
+    P3OUT = 0;
+    P3DIR = 0xff;
+    P4OUT = 0;
+    P4DIR = 0xff;
+    P5OUT = 0;
+    P5DIR = 0xff;
+    P6OUT = 0;
+    P6DIR = 0xff;
+    P7OUT = 0;
+    P7DIR = 0xff;
+    P8OUT = 0;
+    P8DIR = 0xff;
+    PJOUT = 0;
+    PJDIR = 0xff;
+
+    // Disable GPIO power-on default high-impedance mode
+    PM5CTL0 &= ~LOCKLPM5;
+}
+
+static void adc12_init(void) {
+    // Configure ADC12
+
+    // 2.0 V reference selected, comment this to use 1.2V
+    // REFCTL0 |= REFVSEL_1;
+
+    ADC12CTL0 = ADC12SHT0_2 |   // 16 cycles sample and hold time
+                ADC12ON;        // ADC12 on
+    ADC12CTL1 = ADC12PDIV_1 |   // Predivide by 4, from ~4.8MHz MODOSC
+                ADC12SHP;       // SAMPCON is from the sampling timer
+    ADC12CTL2 = ADC12RES_2 |    // Default 12-bit conversion results, 14cycles conversion time
+                ADC12PWRMD_1;   // Low-power mode
+
+    // Use battery monitor (1/2 AVcc)
+    // ADC12CTL3 = ADC12BATMAP;  // 1/2AVcc channel selected for ADC ch A31
+    // ADC12MCTL0 = ADC12INCH_31 |
+    //              ADC12VRSEL_1;  // VR+ = VREF buffered, VR- = Vss
+
+    // Use P3.0
+    P3SEL1 |= BIT0;
+    P3SEL0 |= BIT0;
+    ADC12MCTL0 = ADC12INCH_12|      // Select ch A12 at P3.0
+                 ADC12VRSEL_1;      // VR+ = VREF buffered, VR- = Vss
+    // while (!(REFCTL0 & REFGENRDY)) {}   // Wait for reference generator to settle
+    ADC12IER0 = ADC12IE0;  // Enable ADC conv complete interrupt
+}
+
+// ADC12 interrupt service routine
+void __attribute__((interrupt(ADC12_B_VECTOR))) ADC12_ISR(void) {
+    switch (__even_in_range(ADC12IV, ADC12IV__ADC12RDYIFG)) {
+        case ADC12IV__ADC12IFG0:            // Vector 12:  ADC12MEM0
+            // Result is stored in ADC12MEM0
+            adc_reading = ADC12MEM0;
+            __bic_SR_register_on_exit(LPM0_bits);
+            break;
+        default: break;
+    }
+}
+
+// Take ~60us
+static uint16_t sample_vcc(void) {
+    ADC12CTL0 |= ADC12ENC | ADC12SC;  // Start sampling & conversion
+    __bis_SR_register(LPM0_bits | GIE);
+    return adc_reading;
+}
+
+static void comp_init(void) {
+    // Enable CEOUT for stability concerns
+    P1DIR  |= BIT2;                 // P1.2 COUT output direction
+    P1SEL1 |= BIT2;                 // Select COUT function on P1.2/COUT
+
+    // Setup Comparator_E
+    // CECTL1 = CEMRVS   |
+            //  CEPWRMD_1|  // 1 for Normal power mode / 2 for Ultra-low power mode
+            //  CEF      |  // Output filter enabled
+            //  CEFDLY_1;   // Output filter delay 900 ns
+    CECTL1 = CEPWRMD_1;
+
+    CECTL2 =  // CEREFACC |  // Enable (low-power low-accuracy) clocked mode
+                         // ..(can be overwritten by ADC static mode)
+             CEREFL_1 |  // VREF 1.2 V is selected
+             CERS_2   |  // VREF applied to R-ladder
+             CERSEL   |  // to -terminal
+             COMPE_DEFAULT_HI_THRESHOLD|    // Hi V_th, 23(10111)
+             COMPE_DEFAULT_LO_THRESHOLD;    // Lo V_th, 19(10011)
+            // CEREF_n : V threshold (Volt)
+            //  0 : 0.1125
+            //  1 : 0.2250
+            //  2 : 0.3375
+            //  3 : 0.4500
+            //  4 : 0.5625
+            //  5 : 0.6750
+            //  6 : 0.7875
+            //  7 : 0.9000
+            //  8 : 1.0125
+            //  9 : 1.1250
+            // 10 : 1.2375
+            // 11 : 1.3500
+            // 12 : 1.4625
+            // 13 : 1.5750
+            // 14 : 1.6875
+            // 15 : 1.8000
+            // 16 : 1.9125
+            // 17 : 2.0250
+            // 18 : 2.1375
+            // 19 : 2.2500
+            // 20 : 2.3625
+            // 21 : 2.4750
+            // 22 : 2.5875
+            // 23 : 2.7000
+            // 24 : 2.8125
+            // 25 : 2.9250
+            // 26 : 3.0375
+            // 27 : 3.1500
+            // 28 : 3.2625
+            // 29 : 3.3750
+            // 30 : 3.4875
+            // 31 : 3.6000
+
+    // Set up internal Vref (No use)
+    // while (REFCTL0 & REFGENBUSY);
+    // REFCTL0 |= REFVSEL_0 | REFON;  // Select internal Vref (VR+) = 1.2V  Internal Reference ON
+    // while (!(REFCTL0 & REFBGRDY));  // Wait for reference generator to settle
+
+    // Channel selection
+    P3SEL1 |= BIT0;  // P3.0/C12 for Vcompare
+    P3SEL0 |= BIT0;
+    CECTL0 = CEIPEN | CEIPSEL_12;   // Enable V+, input channel C12/P3.0
+    CECTL3 |= CEPD12;  // Input Buffer Disable @P3.0/C12 (also set by the last line)
+
+    CEINT  = CEIE;  // Interrupt enabled (Rising Edge)
+            //  CEIIE;  // Inverted interrupt enabled (Falling Edge)
+            //  CERDYIE;  // Ready interrupt enabled
+
+    CECTL1 |= CEON;  // Turn On Comparator_E
+}
+
+// Set CEREF0, resistor_tap should be from 0 to 31
+void set_CEREF0(uint8_t resistor_tap) {
+    CECTL2 = (CECTL2 & ~CEREF0) |
+        (CEREF0 & (uint16_t) resistor_tap);
+}
+
+// Set CEREF1, resistor_tap should be from 0 to 31
+void set_CEREF1(uint8_t resistor_tap) {
+    CECTL2 = (CECTL2 & ~CEREF1) |
+        (CEREF1 & ((uint16_t) resistor_tap << 8));
+}
+
+// Comparator E interrupt service routine, Hibernus
+void __attribute__((interrupt(COMP_E_VECTOR))) Comp_ISR(void) {
+    switch (__even_in_range(CEIV, CEIV_CERDYIFG)) {
+        case CEIV_NONE: break;
+        case CEIV_CEIFG:
+            CEINT = (CEINT & (~CEIFG) & (~CEIIFG) & (~CEIE)) | CEIIE;
+            P1OUT &= ~BIT4;  // Debug
+            __bic_SR_register_on_exit(LPM3_bits);
+            break;
+        case CEIV_CEIIFG:
+            if (storing_energy) {
+                set_CEREF0(adapt_threshold);
+                set_CEREF1(TARGET_END_THRESHOLD);
+            }
+            CEINT = (CEINT & (~CEIIFG) & (~CEIFG) & (~CEIIE)) | CEIE;
+
+            // backup();
+            // if (suspending) {
+                P1OUT |= BIT4;  // Debug
+                __bis_SR_register_on_exit(LPM3_bits | GIE);
+            // } else {
+            //     P1OUT &= ~BIT5;  // Debug, come back from restore()
+            //     __bic_SR_register_on_exit(LPM3_bits);
+            // }
+            break;
+        // case CEIV_CERDYIFG:
+        //     CEINT &= ~CERDYIFG;
+        //     break;
+        default: break;
+    }
+}
+
+void uart_init(void) {
+    // P2.0 UCA0TXD
+    // P2.1 UCA0RXD
+    P2SEL0 &= ~(BIT0 | BIT1);
+    P2SEL1 |=   BIT0 | BIT1;
+
+    /* 115200 bps on 8MHz SMCLK */
+    UCA0CTL1 |= UCSWRST;                        // Reset State
+    UCA0CTL1 |= UCSSEL__SMCLK;                  // SMCLK
+
+    // 115200 baud rate
+    // 8M / 115200 = 69.444444...
+    // 69.444 = 16 * 4 + 5 + 0.444444....
+    UCA0BR0 = 4;
+    UCA0BR1 = 0;
+    UCA0MCTLW = UCOS16 | UCBRF0 | UCBRF2 | 0x5500;  // UCBRF = 5, UCBRS = 0x55
+
+    UCA0CTL1 &= ~UCSWRST;
+}
+
+void uart_send_str(char* str) {
+    UCA0IFG &= ~UCTXIFG;
+    while (*str != '\0') {
+        UCA0TXBUF = *str++;
+        while (!(UCA0IFG & UCTXIFG)) {}
+        UCA0IFG &= ~UCTXIFG;
+    }
+}
+
+/* unsigned int to string, decimal format */
+char* uitoa_10(unsigned num, char* const str) {
+    // calculate decimal
+    char* ptr = str;
+    unsigned modulo;
+    do {
+        modulo = num % 10;
+        num /= 10;
+        *ptr++ = '0' + modulo;
+    } while (num);
+
+    // reverse string
+    *ptr-- = '\0';
+    char* ptr1 = str;
+    char tmp_char;
+    while (ptr1 < ptr) {
+        tmp_char = *ptr;
+        *ptr--= *ptr1;
+        *ptr1++ = tmp_char;
+    }
+
+    return str;
+}
+
+// Boot function
+void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0")))
+iclib_boot() {
+    WDTCTL = WDTPW | WDTHOLD;            // Stop watchdog timer
+    __set_SP_register(&__bootstackend);  // Boot stack
+    __bic_SR_register(GIE);              // Disable interrupts during startup
+
+    // Minimized initialization stack for wakeup
+    // ..to avoid being stuck in boot & fail
+    gpio_init();
+    adc12_init();
+    comp_init();
+
+    P1OUT |= BIT4;  // Debug
+    __bis_SR_register(LPM3_bits | GIE);  // Enter LPM3 with interrupts enabled
+    // Processor sleeps
+    // ...
+    // Processor wakes up after interrupt (Hi V threshold hit)
+
+    // Remaining initialization stack for normal execution
+    clock_init();
+    rtc_init();
+    uart_init();
+
+    // Boot functions that are mapped to ram (most importantly fastmemcpy)
+    uint8_t *dst = &__ramtext_low;
+    uint8_t *src = &__ramtext_loadLow;
+    size_t len = &__ramtext_high - &__ramtext_low;
+    while (len--) {
+        *dst++ = *src++;
+    }
+
+    storing_energy = 0;
+    // if (snapshot_valid) {
+    //     P1OUT |= BIT5;  // Debug, restore() starts
+    //     restore();
+    //     // Does not return here!!!
+    //     // Return to the next line of backup()...
+    // } else {
+    //     // snapshot_valid = 0 when
+    //     // previous snapshot failed or 1st boot (both rare)
+    //     // Normal boot...
+    // }
+
+    // Load .data to RAM
+    fastmemcpy(&__datastart, &__romdatastart, &__dataend - &__datastart);
+
+    __set_SP_register(&__stackend);  // Runtime stack
+
+    int main();  // Suppress implicit decl. warning
+    main();
+}
+
+// Connect supply profiling
+void atom_func_start(uint8_t func_id) {
+    // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
+    // ..or continue directly if (Vcc > adapt_threshold)
+
+    // *** Charging cycle starts ***
+    P7OUT |= BIT0;
+    // Take a Vcc reading
+    adc_r1 = sample_vcc();
+    // Clear and start RTC
+    RTCCNT12 = 0;
+    RTCCTL13 &= ~(RTCHOLD);  // Start RTC
+    P7OUT &= ~BIT0;
+
+    // Sleep and wait for energy recharged
+    storing_energy = 1;
+    set_CEREF1(adapt_threshold);
+    COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
+    set_CEREF1(TARGET_END_THRESHOLD);
+    storing_energy = 0;
+
+    // *** Charging cycle ends, discharging cycle starts ***
+    P7OUT |= BIT0;
+    // Take a time reading, get T_charge
+    rtc_cnt1 = RTCCNT12;  // T_charge
+    // Take a Vcc reading, get Delta V_charge
+    adc_r2 = sample_vcc();
+    d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
+    P7OUT &= ~BIT0;
+
+    // Run the atomic function...
+    P1OUT |= BIT0;  // Debug
+}
+
+void atom_func_end(uint8_t func_id) {
+    // ...Atomic function ends
+    P1OUT &= ~BIT0;
+
+    // *** Discharging cycle ends ***
+    P7OUT |= BIT0;
+    // Take a Vcc reading, get Delta V_exe
+    adc_r1 = sample_vcc();
+    d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
+
+    // Take a time reading, get T_exe
+    rtc_cnt2 = RTCCNT12 - rtc_cnt1;  // T_exe
+
+    // Stop RTC
+    RTCCTL13 |= RTCHOLD;
+
+    // Adapt the next threshold
+#ifdef FLOAT_POINT_ARITHMETIC
+    // Float-point method
+    v_exe = (float) rtc_cnt2 / rtc_cnt1 * d_v_charge + d_v_discharge;
+#else
+    // Integer method
+    v_exe = (((rtc_cnt2 * 0x100) / rtc_cnt1) * d_v_charge + (d_v_discharge * 0x100)) / 0x100;
+#endif
+    // adapt_threshold = (uint8_t) (v_exe / MAX_ADC_READING * MAX_COMPE_RTAP) + TARGET_END_THRESHOLD;
+    // if (adapt_threshold > 31) {
+    //     adapt_threshold = 31;
+    // }
+
+    v_exe_mean -= v_exe_history[i] / V_EXE_HISTORY_SIZE;
+    v_exe_history[i] = (uint16_t) v_exe;
+    v_exe_mean += v_exe_history[i] / V_EXE_HISTORY_SIZE;
+    // v_th_store[i] = adapt_threshold;
+    if (++i == V_EXE_HISTORY_SIZE) {
+        i = 0;
+    }
+    P7OUT &= ~BIT0;
+
+    char str_buffer[20];
+    P1OUT |= BIT0;      // Debug
+    uart_send_str(uitoa_10(v_exe_mean, str_buffer));
+    uart_send_str("\n\r");
+    P1OUT &= ~BIT0;     // Debug
+}
+
+// Old code
+/*
 void atom_func_start(uint8_t func_id) {
 #ifndef DEBS  // Our approach
     if (atom_state[func_id].check_fail) {
@@ -581,30 +748,4 @@ void atom_func_end(uint8_t func_id) {
     // CECTL2 = (CECTL2 & ~CEREF0) | CEREF0_17;
     CEINT |= CEIIE;
 }
-
-// void profiling_start(uint8_t func_id) {
-//     // *** Charging cycle starts ***
-//     // Take a Vcc reading
-//     adc_reading_last = sample_vcc();
-
-//     // Clear and start RTC
-//     RTCCNT12 = 0;
-//     RTCCTL13 &= ~(RTCHOLD);  // Start RTC
-
-//     // Sleep until hi voltage threshold is hit...
-//     __bis_SR_register(LPM3_bits | GIE);
-
-//     // *** Charging cycle ends, discharging cycle starts ***
-//     // Take a Vcc reading, get Delta V_charge
-//     // Take a time reading, get T_charge
-//     // Run the function...
-// }
-
-// void profiling_end(uint8_t func_id) {
-//     // *** Discharging cycle ends ***
-//     // Take a Vcc reading, get Delta V_exe
-//     // Take a time reading, get T_exe
-//     // Stop RTC
-
-//     // Adapt the next threshold... (TBD)
-// }
+*/

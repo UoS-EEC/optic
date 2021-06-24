@@ -12,6 +12,8 @@ add_executable(
     ic.c
     ic.h
     config.h
+    uart.c
+    uart.h
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES SUFFIX ".elf")
@@ -29,6 +31,7 @@ target_compile_options(
     PRIVATE -O0
     PRIVATE -msmall
     PRIVATE -g 
+    # PRIVATE -mhwmult=none
     PRIVATE -mhwmult=auto
     PRIVATE -Wall
     PRIVATE -fno-zero-initialized-in-bss  # We don't want to zero out whole bss on every boot
@@ -47,7 +50,9 @@ target_link_directories(
 target_link_libraries(
     ${TARGET_NAME}
     # PUBLIC opta
-    PRIVATE IQmathLib_extracted
+    # PRIVATE IQmathLib_extracted
+    # PRIVATE m
+    PRIVATE mul_f5
 )
 
 target_link_options(

@@ -14,8 +14,6 @@ void atom_func_end(uint8_t func_id);
 void profiling_start(uint8_t func_id);
 void profiling_end(uint8_t func_id);
 
-uint16_t sample_vcc(void);
-
 // configs
 #define AES_128_ENC      0
 #define AES_128_DEC      1

@@ -19,17 +19,8 @@ void dummy_function(void) {
 }
 
 int main(void) {
-    // RTCCTL13 &= ~(RTCHOLD);  // Start RTC
-    // CECTL2 = (CECTL2 & (~CEREF0)) | (CEREF0 & 0x001b);
-    // __delay_cycles(80);
     for (;;) {
-        // P4OUT |= BIT1;  // debug
-        // ADCvar = sample_vcc();
-        // P4OUT &= ~BIT1;  // debug
-        // __bis_SR_register(LPM3_bits | GIE);
-        // // ... Wake up from RTC event
         dummy_function();
-        // __delay_cycles(800);  // 100us
     }
 
     return 0;
