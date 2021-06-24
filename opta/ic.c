@@ -63,7 +63,7 @@ uint32_t d_v_charge;
 uint32_t d_v_discharge;
 uint32_t rtc_cnt1;
 uint32_t rtc_cnt2;
-uint32_t v_exe;
+uint16_t v_exe;
 #endif
 
 uint8_t storing_energy;
@@ -322,8 +322,10 @@ void __attribute__((interrupt(ADC12_B_VECTOR))) ADC12_ISR(void) {
 
 // Take ~60us
 static uint16_t sample_vcc(void) {
+    P8OUT |= BIT0;
     ADC12CTL0 |= ADC12ENC | ADC12SC;  // Start sampling & conversion
     __bis_SR_register(LPM0_bits | GIE);
+    P8OUT &= ~BIT0;
     return adc_reading;
 }
 
@@ -548,6 +550,7 @@ iclib_boot() {
     main();
 }
 
+#ifndef DISCONNECT_SUPPLY_PROFILING
 // Connect supply profiling
 void atom_func_start(uint8_t func_id) {
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
@@ -598,34 +601,91 @@ void atom_func_end(uint8_t func_id) {
     // Stop RTC
     RTCCTL13 |= RTCHOLD;
 
-    // Adapt the next threshold
+    // Calculate the actual voltage drop
 #ifdef FLOAT_POINT_ARITHMETIC
     // Float-point method
     v_exe = (float) rtc_cnt2 / rtc_cnt1 * d_v_charge + d_v_discharge;
 #else
     // Integer method
-    v_exe = (((rtc_cnt2 * 0x100) / rtc_cnt1) * d_v_charge + (d_v_discharge * 0x100)) / 0x100;
+    v_exe = (uint16_t) ((((rtc_cnt2 * 0x100) / rtc_cnt1) * d_v_charge + (d_v_discharge * 0x100)) / 0x100);
 #endif
-    // adapt_threshold = (uint8_t) (v_exe / MAX_ADC_READING * MAX_COMPE_RTAP) + TARGET_END_THRESHOLD;
+
+    if (v_exe < 4096) {
+        v_exe_mean -= v_exe_history[i] / V_EXE_HISTORY_SIZE;
+        v_exe_history[i] = v_exe;
+        v_exe_mean += v_exe_history[i] / V_EXE_HISTORY_SIZE;
+        // v_th_store[i] = adapt_threshold;
+        if (++i == V_EXE_HISTORY_SIZE) {
+            i = 0;
+        }
+    }
+    P7OUT &= ~BIT0;
+
+    // Adapt the next threshold
+    // adapt_threshold = (uint8_t) (v_exe_mean / UNIT_COMPE_ADC) + 1 + TARGET_END_THRESHOLD;
     // if (adapt_threshold > 31) {
     //     adapt_threshold = 31;
     // }
 
+    // UART debug info
+    // char str_buffer[20];
+    // P1OUT |= BIT0;      // Debug
+    // uart_send_str(uitoa_10(v_exe_mean, str_buffer));
+    // uart_send_str("\n\r");
+    // P1OUT &= ~BIT0;     // Debug
+}
+
+#else
+
+// Disconnect supply profiling
+void atom_func_start(uint8_t func_id) {
+    // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
+    // ..or continue directly if (Vcc > adapt_threshold)
+
+    // Sleep and wait for energy recharged
+    storing_energy = 1;
+    set_CEREF1(adapt_threshold);
+    COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
+    set_CEREF1(TARGET_END_THRESHOLD);
+    storing_energy = 0;
+
+    // *** Charging cycle ends, discharging cycle starts ***
+    // Disconnect supply
+    P1OUT |= BIT5;
+    // Take a Vcc reading, get Delta V_charge
+    adc_r2 = sample_vcc();
+
+    // Run the atomic function...
+    P1OUT |= BIT0;  // Debug
+}
+
+void atom_func_end(uint8_t func_id) {
+    // ...Atomic function ends
+    P1OUT &= ~BIT0;
+
+    // *** Discharging cycle ends ***
+    // Reconnect supply
+    P1OUT &= ~BIT5;
+    // Take a Vcc reading, get Delta V_exe
+    adc_r1 = sample_vcc();
+    d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
+
     v_exe_mean -= v_exe_history[i] / V_EXE_HISTORY_SIZE;
-    v_exe_history[i] = (uint16_t) v_exe;
+    v_exe_history[i] = (uint16_t) d_v_discharge;
     v_exe_mean += v_exe_history[i] / V_EXE_HISTORY_SIZE;
-    // v_th_store[i] = adapt_threshold;
     if (++i == V_EXE_HISTORY_SIZE) {
         i = 0;
     }
-    P7OUT &= ~BIT0;
 
+    // UART debug info
     char str_buffer[20];
     P1OUT |= BIT0;      // Debug
     uart_send_str(uitoa_10(v_exe_mean, str_buffer));
     uart_send_str("\n\r");
     P1OUT &= ~BIT0;     // Debug
 }
+
+#endif
 
 // Old code
 /*
