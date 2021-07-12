@@ -30,55 +30,52 @@
 //                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 
-// unsigned char key[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-//                       0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
-// unsigned char iv[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-//                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+unsigned char key[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                      0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
+unsigned char iv[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 
-// unsigned char input[2048] =
-//     "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo "
-//     "ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis "
-//     "dis parturient montes, nascetur ridiculus mus. Donec quam felis, "
-//     "ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa "
-//     "quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, "
-//     "arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. "
-//     "Nullam dictum felis eu pede mollis pretium. Integer tincidunt. Cras "
-//     "dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. "
-//     "Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. "
-//     "Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. "
-//     "Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean "
-//     "imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper "
-//     "ultricies nisi. Nam eget dui. Lorem ipsum dolor sit amet, consectetuer "
-//     "adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum "
-//     "sociis natoque penatibus et magnis dis parturient montes, nascetur "
-//     "ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium "
-//     "quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla "
-//     "vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, "
-//     "imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis "
-//     "pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. "
-//     "Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, "
-//     "consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, "
-//     "viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius "
-//     "laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel "
-//     "augue. Curabitur ullamcorper ultricies nisi. Nam eget dui. Lorem ipsum "
-//     "dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget "
-//     "dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis "
-//     "parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies "
-//     "nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. "
-//     "Donec pede justo";
+unsigned char input[2048] =
+    "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo "
+    "ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis "
+    "dis parturient montes, nascetur ridiculus mus. Donec quam felis, "
+    "ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa "
+    "quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, "
+    "arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. "
+    "Nullam dictum felis eu pede mollis pretium. Integer tincidunt. Cras "
+    "dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. "
+    "Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. "
+    "Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. "
+    "Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean "
+    "imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper "
+    "ultricies nisi. Nam eget dui. Lorem ipsum dolor sit amet, consectetuer "
+    "adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum "
+    "sociis natoque penatibus et magnis dis parturient montes, nascetur "
+    "ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium "
+    "quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla "
+    "vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, "
+    "imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis "
+    "pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. "
+    "Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, "
+    "consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, "
+    "viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius "
+    "laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel "
+    "augue. Curabitur ullamcorper ultricies nisi. Nam eget dui. Lorem ipsum "
+    "dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget "
+    "dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis "
+    "parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies "
+    "nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. "
+    "Donec pede justo";
 
-// unsigned char __attribute__((section(".persistent"))) output[2048];
+unsigned char __attribute__((section(".persistent"))) output[2048];
 
-void dummy_function(void) {
-    atom_func_start(AES_128_ENC);
-    // P1OUT |= BIT0;
-    uint16_t i = 4000;
-    while (i--) {}
-    // P1OUT &= ~BIT0;
-    // Should see P1.0 be 0->1->0 if this function ends completely
-    atom_func_end(AES_128_ENC);
-}
+// void dummy_function(void) {
+//     atom_func_start(AES_128_ENC);
+//     uint16_t i = 4000;
+//     while (i--) {}
+//     atom_func_end(AES_128_ENC);
+// }
 
 int main(void) {
     for (;;) {
@@ -89,7 +86,7 @@ int main(void) {
         // Encrypt 1KB data
         // aes_128_enc(key, iv, input, output, 64);
         // Encrypt 2KB data
-        // aes_128_enc(key, iv, input, output, 128);
+        aes_128_enc(key, iv, input, output, 128);
 
         // Decrypt 1KB data
         // aes_128_dec(key, iv, input, input, 64);
@@ -97,7 +94,7 @@ int main(void) {
         // Decrypt 2KB data
         // aes_128_dec(key, iv, input, input, 128);
 
-        dummy_function();
+        // dummy_function();
     }
 
     return 0;

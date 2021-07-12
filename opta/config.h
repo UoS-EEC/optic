@@ -21,7 +21,7 @@
 
 #define COMPE_DEFAULT_HI_THRESHOLD    0x0017    // 23
 #define COMPE_DEFAULT_LO_THRESHOLD    0x1100    // 17
-#define TARGET_END_THRESHOLD        19
+#define TARGET_END_THRESHOLD        17
 #define PROFILING_INIT_THRESHOLD    27
     // CEREF_n : V threshold (Volt)
     //  0 : 0.1125
@@ -63,7 +63,7 @@
 // #define DISCONNECT_SUPPLY_PROFILING     // Disconnect supply when profiling
                                         // Remember to enable P1.5 for short-circuiting
 #define DEBUG_GPIO
-#define DEBUG_UART
+// #define DEBUG_UART
 
 
 #endif  // OPTA_CONFIG_H_

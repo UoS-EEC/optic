@@ -263,7 +263,7 @@ static void gpio_init(void) {
     P2OUT = 0;
     P2DIR = 0xff;
     P3OUT = 0;
-    P3DIR = 0xff;
+    P3DIR |= 0xfe;  // P3.0 ADC/CompE
     P4OUT = 0;
     P4DIR = 0xff;
     P5OUT = 0;
@@ -300,31 +300,38 @@ static void adc12_init(void) {
     //              ADC12VRSEL_1;  // VR+ = VREF buffered, VR- = Vss
 
     // Use P3.0
-    P3SEL1 |= BIT0;
-    P3SEL0 |= BIT0;
-    ADC12MCTL0 = ADC12INCH_12|      // Select ch A12 at P3.0
+    // P3SEL1 |= BIT0;
+    // P3SEL0 |= BIT0;
+    // ADC12MCTL0 = ADC12INCH_12|      // Select ch A12 at P3.0
+    //              ADC12VRSEL_1;      // VR+ = VREF buffered, VR- = Vss
+    // Use P3.1
+    P3SEL1 |= BIT1;
+    P3SEL0 |= BIT1;
+    ADC12MCTL0 = ADC12INCH_13|      // Select ch A13 at P3.1
                  ADC12VRSEL_1;      // VR+ = VREF buffered, VR- = Vss
     // while (!(REFCTL0 & REFGENRDY)) {}   // Wait for reference generator to settle
-    ADC12IER0 = ADC12IE0;  // Enable ADC conv complete interrupt
+    // ADC12IER0 = ADC12IE0;  // Enable ADC conv complete interrupt
 }
 
 // ADC12 interrupt service routine
-void __attribute__((interrupt(ADC12_B_VECTOR))) ADC12_ISR(void) {
-    switch (__even_in_range(ADC12IV, ADC12IV__ADC12RDYIFG)) {
-        case ADC12IV__ADC12IFG0:            // Vector 12:  ADC12MEM0
-            // Result is stored in ADC12MEM0
-            adc_reading = ADC12MEM0;
-            __bic_SR_register_on_exit(LPM0_bits);
-            break;
-        default: break;
-    }
-}
+// void __attribute__((interrupt(ADC12_B_VECTOR))) ADC12_ISR(void) {
+//     switch (__even_in_range(ADC12IV, ADC12IV__ADC12RDYIFG)) {
+//         case ADC12IV__ADC12IFG0:            // Vector 12:  ADC12MEM0
+//             // Result is stored in ADC12MEM0
+//             adc_reading = ADC12MEM0;
+//             __bic_SR_register_on_exit(LPM0_bits);
+//             break;
+//         default: break;
+//     }
+// }
 
 // Take ~60us
 static uint16_t sample_vcc(void) {
     P8OUT |= BIT0;
     ADC12CTL0 |= ADC12ENC | ADC12SC;  // Start sampling & conversion
-    __bis_SR_register(LPM0_bits | GIE);
+    // __bis_SR_register(LPM0_bits | GIE);
+    while (!(ADC12IFGR0 & BIT0)) {}
+    adc_reading = ADC12MEM0;
     P8OUT &= ~BIT0;
     return adc_reading;
 }
@@ -339,7 +346,7 @@ static void comp_init(void) {
             //  CEPWRMD_1|  // 1 for Normal power mode / 2 for Ultra-low power mode
             //  CEF      |  // Output filter enabled
             //  CEFDLY_1;   // Output filter delay 900 ns
-    CECTL1 = CEPWRMD_1;
+    // CECTL1 = CEPWRMD_1;
 
     CECTL2 =  // CEREFACC |  // Enable (low-power low-accuracy) clocked mode
                          // ..(can be overwritten by ADC static mode)
@@ -444,6 +451,7 @@ void __attribute__((interrupt(COMP_E_VECTOR))) Comp_ISR(void) {
     }
 }
 
+#ifdef DEBUG_UART
 void uart_init(void) {
     // P2.0 UCA0TXD
     // P2.1 UCA0RXD
@@ -496,6 +504,7 @@ char* uitoa_10(unsigned num, char* const str) {
 
     return str;
 }
+#endif
 
 // Boot function
 void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0")))
@@ -519,7 +528,9 @@ iclib_boot() {
     // Remaining initialization stack for normal execution
     clock_init();
     rtc_init();
+#ifdef DEBUG_UART
     uart_init();
+#endif
 
     // Boot functions that are mapped to ram (most importantly fastmemcpy)
     uint8_t *dst = &__ramtext_low;
@@ -558,11 +569,13 @@ void atom_func_start(uint8_t func_id) {
 
     // *** Charging cycle starts ***
     P7OUT |= BIT0;
+    CEINT &= ~CEIIE;
     // Take a Vcc reading
     adc_r1 = sample_vcc();
     // Clear and start RTC
     RTCCNT12 = 0;
     RTCCTL13 &= ~(RTCHOLD);  // Start RTC
+    CEINT |= CEIIE;
     P7OUT &= ~BIT0;
 
     // Sleep and wait for energy recharged
@@ -573,16 +586,20 @@ void atom_func_start(uint8_t func_id) {
     storing_energy = 0;
 
     // *** Charging cycle ends, discharging cycle starts ***
+    CEINT &= ~CEIIE;
     P7OUT |= BIT0;
     // Take a time reading, get T_charge
     rtc_cnt1 = RTCCNT12;  // T_charge
-    // Take a Vcc reading, get Delta V_charge
-    adc_r2 = sample_vcc();
-    d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
+
+    if (rtc_cnt1 > 10) {    // Don't profile if charging time is too short
+        // Take a Vcc reading, get Delta V_charge
+        adc_r2 = sample_vcc();
+        d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
+    }
     P7OUT &= ~BIT0;
 
-    // Run the atomic function...
     P1OUT |= BIT0;  // Debug
+    // Run the atomic function...
 }
 
 void atom_func_end(uint8_t func_id) {
@@ -591,48 +608,54 @@ void atom_func_end(uint8_t func_id) {
 
     // *** Discharging cycle ends ***
     P7OUT |= BIT0;
-    // Take a Vcc reading, get Delta V_exe
-    adc_r1 = sample_vcc();
-    d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
 
-    // Take a time reading, get T_exe
-    rtc_cnt2 = RTCCNT12 - rtc_cnt1;  // T_exe
+    if (rtc_cnt1 > 10) {    // Don't profile if charging time is too short
+        // Take a Vcc reading, get Delta V_exe
+        adc_r1 = sample_vcc();
+        d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
 
-    // Stop RTC
-    RTCCTL13 |= RTCHOLD;
+        // Take a time reading, get T_exe
+        rtc_cnt2 = RTCCNT12 - rtc_cnt1;  // T_exe
 
-    // Calculate the actual voltage drop
+        // Stop RTC
+        RTCCTL13 |= RTCHOLD;
+
+        // Calculate the actual voltage drop
 #ifdef FLOAT_POINT_ARITHMETIC
-    // Float-point method
-    v_exe = (float) rtc_cnt2 / rtc_cnt1 * d_v_charge + d_v_discharge;
+        // Float-point method
+        v_exe = (float) rtc_cnt2 / rtc_cnt1 * d_v_charge + d_v_discharge;
 #else
-    // Integer method
-    v_exe = (uint16_t) ((((rtc_cnt2 * 0x100) / rtc_cnt1) * d_v_charge + (d_v_discharge * 0x100)) / 0x100);
+        // Integer method
+        v_exe = (uint16_t) ((((rtc_cnt2 * 0x100) / rtc_cnt1) * d_v_charge + (d_v_discharge * 0x100)) / 0x100);
 #endif
+        // Simply increment/decrement, for debug/test
+        // if (--adapt_threshold < 20) {
+        //     adapt_threshold = 31;
+        // }
 
-    if (v_exe < 4096) {
-        v_exe_mean -= v_exe_history[i] / V_EXE_HISTORY_SIZE;
-        v_exe_history[i] = v_exe;
-        v_exe_mean += v_exe_history[i] / V_EXE_HISTORY_SIZE;
-        // v_th_store[i] = adapt_threshold;
-        if (++i == V_EXE_HISTORY_SIZE) {
-            i = 0;
+        if (v_exe < 4096) {  // Discard illegal results over 4096
+            v_exe_mean -= v_exe_history[i] / V_EXE_HISTORY_SIZE;
+            v_exe_history[i] = v_exe;
+            v_exe_mean += v_exe_history[i] / V_EXE_HISTORY_SIZE;
+            if (++i == V_EXE_HISTORY_SIZE) {
+                i = 0;
+                // Adapt the next threshold
+                adapt_threshold = (uint8_t) (v_exe_mean / UNIT_COMPE_ADC) + 1 + TARGET_END_THRESHOLD;
+                if (adapt_threshold > 31) {     // Prevent illegal values
+                    adapt_threshold = 31;
+                }
+#ifdef DEBUG_UART
+                // UART debug info
+                char str_buffer[20];
+                uart_send_str(uitoa_10(v_exe_mean, str_buffer));
+                uart_send_str(uitoa_10(adapt_threshold, str_buffer));
+                uart_send_str("\n\r");
+#endif
+            }
         }
     }
+    CEINT |= CEIIE;
     P7OUT &= ~BIT0;
-
-    // Adapt the next threshold
-    // adapt_threshold = (uint8_t) (v_exe_mean / UNIT_COMPE_ADC) + 1 + TARGET_END_THRESHOLD;
-    // if (adapt_threshold > 31) {
-    //     adapt_threshold = 31;
-    // }
-
-    // UART debug info
-    // char str_buffer[20];
-    // P1OUT |= BIT0;      // Debug
-    // uart_send_str(uitoa_10(v_exe_mean, str_buffer));
-    // uart_send_str("\n\r");
-    // P1OUT &= ~BIT0;     // Debug
 }
 
 #else
