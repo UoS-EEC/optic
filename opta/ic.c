@@ -572,8 +572,6 @@ iclib_boot() {
 
     __set_SP_register(&__stackend);  // Runtime stack
 
-    P7OUT |= BIT1;  // Debug
-
     int main();  // Suppress implicit decl. warning
     main();
 }
