@@ -20,17 +20,22 @@ extern uint8_t __stack, __stackend;
 typedef struct AtomFuncState_s {
     // calibrated:
     // 0: need to calibrate, 1: no need
-    uint8_t calibrated;
+    // uint8_t calibrated;
 
     // check_fail:
     // Set at function entry, reset at exit,
     // ..so read as '1' at the entry means the function failed before
-    uint8_t check_fail;
+    // uint8_t check_fail;
 
     // start_thr:
     // Resume threshold, represented as
     // ..the resistor tap setting of the internal comparator
-    uint8_t start_thr;
+    // uint8_t start_thr;
+
+    uint8_t  adapt_threshold;   // Init: PROFILING_INIT_THRESHOLD
+    uint16_t v_exe_history[V_EXE_HISTORY_SIZE];
+    uint8_t  v_exe_hist_index;  // Init: 0
+    uint16_t v_exe_mean;        // Init: 0
 } AtomFuncState;
 
 AtomFuncState PERSISTENT atom_state[ATOM_FUNC_NUM];
@@ -48,10 +53,11 @@ uint8_t PERSISTENT stack_snapshot[STACK_SIZE];
 uint8_t PERSISTENT snapshot_valid = 0;
 uint8_t PERSISTENT suspending;  // from backup: 1, from restore: 0
 
+
+// Profiling parameters
 volatile uint16_t adc_reading;  // Used by ADC ISR
 uint16_t adc_r1;
 uint16_t adc_r2;
-
 #ifdef FLOAT_POINT_ARITHMETIC
 int16_t d_v_charge;
 int16_t d_v_discharge;
@@ -66,13 +72,13 @@ uint32_t rtc_cnt2;
 uint16_t v_exe;
 #endif
 
+// Comparator E control signal
 uint8_t storing_energy;
 
-uint8_t PERSISTENT profiling;
-uint8_t PERSISTENT adapt_threshold = PROFILING_INIT_THRESHOLD;
-uint16_t PERSISTENT v_exe_history[V_EXE_HISTORY_SIZE];
-uint16_t PERSISTENT v_exe_mean = 0;
-uint8_t i = 0;
+// uint8_t PERSISTENT adapt_threshold = PROFILING_INIT_THRESHOLD;
+// uint16_t PERSISTENT v_exe_history[V_EXE_HISTORY_SIZE];
+// uint16_t PERSISTENT v_exe_mean = 0;
+// uint8_t PERSISTENT i = 0;
 
 // Function declarations
 static void backup(void);
@@ -342,19 +348,19 @@ static void comp_init(void) {
     P1SEL1 |= BIT2;                 // Select COUT function on P1.2/COUT
 
     // Setup Comparator_E
-    // CECTL1 = CEMRVS   |
-            //  CEPWRMD_1|  // 1 for Normal power mode / 2 for Ultra-low power mode
-            //  CEF      |  // Output filter enabled
-            //  CEFDLY_1;   // Output filter delay 900 ns
-    // CECTL1 = CEPWRMD_1;
+    CECTL1 = CEPWRMD_1|  // 0 for High-speed mode
+                         // 1 for Normal power mode
+                         // 2 for Ultra-low power mode
+             CEF      |  // Output filter enabled
+             CEFDLY_1;   // Output filter delay 900 ns
 
     CECTL2 =  // CEREFACC |  // Enable (low-power low-accuracy) clocked mode
                          // ..(can be overwritten by ADC static mode)
              CEREFL_1 |  // VREF 1.2 V is selected
              CERS_2   |  // VREF applied to R-ladder
              CERSEL   |  // to -terminal
-             COMPE_DEFAULT_HI_THRESHOLD|    // Hi V_th, 23(10111)
-             COMPE_DEFAULT_LO_THRESHOLD;    // Lo V_th, 19(10011)
+             COMPE_DEFAULT_HI_THRESHOLD|    // Hi V_th
+             COMPE_DEFAULT_LO_THRESHOLD;    // Lo V_th
             // CEREF_n : V threshold (Volt)
             //  0 : 0.1125
             //  1 : 0.2250
@@ -430,7 +436,8 @@ void __attribute__((interrupt(COMP_E_VECTOR))) Comp_ISR(void) {
             break;
         case CEIV_CEIIFG:
             if (storing_energy) {
-                set_CEREF0(adapt_threshold);
+                // set_CEREF0(adapt_threshold);
+                set_CEREF0(CECTL2_H & CEREF1_H);
                 set_CEREF1(TARGET_END_THRESHOLD);
             }
             CEINT = (CEINT & (~CEIIFG) & (~CEIFG) & (~CEIIE)) | CEIE;
@@ -518,6 +525,7 @@ iclib_boot() {
     gpio_init();
     adc12_init();
     comp_init();
+    storing_energy = 0;
 
     P1OUT |= BIT4;  // Debug
     __bis_SR_register(LPM3_bits | GIE);  // Enter LPM3 with interrupts enabled
@@ -540,22 +548,31 @@ iclib_boot() {
         *dst++ = *src++;
     }
 
-    storing_energy = 0;
-    // if (snapshot_valid) {
-    //     P1OUT |= BIT5;  // Debug, restore() starts
-    //     restore();
-    //     // Does not return here!!!
-    //     // Return to the next line of backup()...
-    // } else {
-    //     // snapshot_valid = 0 when
-    //     // previous snapshot failed or 1st boot (both rare)
-    //     // Normal boot...
-    // }
+    if (snapshot_valid) {
+        // P1OUT |= BIT5;  // Debug, restore() starts
+        // restore();
+        // Does not return here!!!
+        // Return to the next line of backup()...
+    } else {
+        // snapshot_valid = 0 when
+        // ..previous snapshot failed or 1st boot (both rare)
+        // Normal boot...
+
+        // Init atom_state
+        for (uint8_t i = 0; i < ATOM_FUNC_NUM; i++) {
+            atom_state[i].adapt_threshold = PROFILING_INIT_THRESHOLD;
+            atom_state[i].v_exe_hist_index = 0;
+            atom_state[i].v_exe_mean = 0;
+        }
+        snapshot_valid = 1;  // Temporary line, make sure atom_state init only once
+    }
 
     // Load .data to RAM
     fastmemcpy(&__datastart, &__romdatastart, &__dataend - &__datastart);
 
     __set_SP_register(&__stackend);  // Runtime stack
+
+    P7OUT |= BIT1;  // Debug
 
     int main();  // Suppress implicit decl. warning
     main();
@@ -580,7 +597,7 @@ void atom_func_start(uint8_t func_id) {
 
     // Sleep and wait for energy recharged
     storing_energy = 1;
-    set_CEREF1(adapt_threshold);
+    set_CEREF1(atom_state[func_id].adapt_threshold);
     COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
     set_CEREF1(TARGET_END_THRESHOLD);
     storing_energy = 0;
@@ -626,29 +643,26 @@ void atom_func_end(uint8_t func_id) {
         v_exe = (float) rtc_cnt2 / rtc_cnt1 * d_v_charge + d_v_discharge;
 #else
         // Integer method
-        v_exe = (uint16_t) ((((rtc_cnt2 * 0x100) / rtc_cnt1) * d_v_charge + (d_v_discharge * 0x100)) / 0x100);
+        v_exe = (uint16_t) ((((rtc_cnt2 * 0x100) / rtc_cnt1) * d_v_charge +
+                            (d_v_discharge * 0x100)) / 0x100);
 #endif
-        // Simply increment/decrement, for debug/test
-        // if (--adapt_threshold < 20) {
-        //     adapt_threshold = 31;
-        // }
 
         if (v_exe < 4096) {  // Discard illegal results over 4096
-            v_exe_mean -= v_exe_history[i] / V_EXE_HISTORY_SIZE;
-            v_exe_history[i] = v_exe;
-            v_exe_mean += v_exe_history[i] / V_EXE_HISTORY_SIZE;
-            if (++i == V_EXE_HISTORY_SIZE) {
-                i = 0;
+            atom_state[func_id].v_exe_mean -= atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
+            atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] = v_exe;
+            atom_state[func_id].v_exe_mean += atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
+            if (++atom_state[func_id].v_exe_hist_index == V_EXE_HISTORY_SIZE) {
+                atom_state[func_id].v_exe_hist_index = 0;
                 // Adapt the next threshold
-                adapt_threshold = (uint8_t) (v_exe_mean / UNIT_COMPE_ADC) + 1 + TARGET_END_THRESHOLD;
-                if (adapt_threshold > 31) {     // Prevent illegal values
-                    adapt_threshold = 31;
+                atom_state[func_id].adapt_threshold = (uint8_t) (atom_state[func_id].v_exe_mean / UNIT_COMPE_ADC) + 1 + TARGET_END_THRESHOLD;
+                if (atom_state[func_id].adapt_threshold > 31) {     // Prevent illegal values
+                    atom_state[func_id].adapt_threshold = 31;
                 }
 #ifdef DEBUG_UART
                 // UART debug info
                 char str_buffer[20];
-                uart_send_str(uitoa_10(v_exe_mean, str_buffer));
-                uart_send_str(uitoa_10(adapt_threshold, str_buffer));
+                uart_send_str(uitoa_10(atom_state[func_id].v_exe_mean, str_buffer));
+                uart_send_str(uitoa_10(atom_state[func_id].adapt_threshold, str_buffer));
                 uart_send_str("\n\r");
 #endif
             }
@@ -667,7 +681,7 @@ void atom_func_start(uint8_t func_id) {
 
     // Sleep and wait for energy recharged
     storing_energy = 1;
-    set_CEREF1(adapt_threshold);
+    set_CEREF1(atom_state[func_id].adapt_threshold);
     COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
     set_CEREF1(TARGET_END_THRESHOLD);
     storing_energy = 0;
@@ -693,22 +707,27 @@ void atom_func_end(uint8_t func_id) {
     adc_r1 = sample_vcc();
     d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
 
-    v_exe_mean -= v_exe_history[i] / V_EXE_HISTORY_SIZE;
-    v_exe_history[i] = (uint16_t) d_v_discharge;
-    v_exe_mean += v_exe_history[i] / V_EXE_HISTORY_SIZE;
-    if (++i == V_EXE_HISTORY_SIZE) {
-        i = 0;
+    atom_state[func_id].v_exe_mean -= atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
+    atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] = (uint16_t) d_v_discharge;
+    atom_state[func_id].v_exe_mean += atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
+    if (++atom_state[func_id].v_exe_hist_index == V_EXE_HISTORY_SIZE) {
+        atom_state[func_id].v_exe_hist_index = 0;
     }
 
+#ifdef DEBUG_UART
     // UART debug info
     char str_buffer[20];
     P1OUT |= BIT0;      // Debug
-    uart_send_str(uitoa_10(v_exe_mean, str_buffer));
+    uart_send_str(uitoa_10(atom_state[func_id].v_exe_mean, str_buffer));
     uart_send_str("\n\r");
     P1OUT &= ~BIT0;     // Debug
+#endif
 }
 
 #endif
+
+
+
 
 // Old code
 /*
