@@ -5,12 +5,13 @@
 #include <msp430fr5994.h>
 #include "aes/aesa.h"
 
-#include "test/ic.h"
+#include "opta/ic.h"
 
 // AES accelerator, cipher block chain mode
 void aes_128_enc(uint8_t* key, uint8_t* iv, uint8_t* plaintext,
                  uint8_t* ciphertext, uint8_t num_blocks) {
     atom_func_start(AES_128_ENC);
+    // atom_func_start_linear(AES_128_ENC, num_blocks);
 
     // Reset AES Module (clears internal state memory)
     AESACTL0 = AESSWRST;
@@ -67,6 +68,7 @@ void aes_128_enc(uint8_t* key, uint8_t* iv, uint8_t* plaintext,
     DMA0CTL &= ~DMAIFG;
 
     atom_func_end(AES_128_ENC);
+    // atom_func_end_linear(AES_128_ENC, num_blocks);
 }
 
 void aes_128_dec(uint8_t* key, uint8_t* iv, uint8_t* ciphertext,

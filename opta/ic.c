@@ -352,7 +352,7 @@ static void comp_init(void) {
                          // 1 for Normal power mode
                          // 2 for Ultra-low power mode
              CEF      |  // Output filter enabled
-             CEFDLY_1;   // Output filter delay 900 ns
+             CEFDLY_3;   // Output filter delay 3600 ns
 
     CECTL2 =  // CEREFACC |  // Enable (low-power low-accuracy) clocked mode
                          // ..(can be overwritten by ADC static mode)
@@ -395,10 +395,10 @@ static void comp_init(void) {
             // 30 : 3.4875
             // 31 : 3.6000
 
-    // Set up internal Vref (No use)
-    // while (REFCTL0 & REFGENBUSY);
-    // REFCTL0 |= REFVSEL_0 | REFON;  // Select internal Vref (VR+) = 1.2V  Internal Reference ON
-    // while (!(REFCTL0 & REFBGRDY));  // Wait for reference generator to settle
+    // Set up internal Vref (No use sometimes)
+    while (REFCTL0 & REFGENBUSY) {}
+    REFCTL0 |= REFVSEL_0 | REFON;       // Select internal Vref (VR+) = 1.2V  Internal Reference ON
+    while (!(REFCTL0 & REFBGRDY)) {}    // Wait for reference generator to settle
 
     // Channel selection
     P3SEL1 |= BIT0;  // P3.0/C12 for Vcompare
@@ -583,15 +583,15 @@ void atom_func_start(uint8_t func_id) {
     // ..or continue directly if (Vcc > adapt_threshold)
 
     // *** Charging cycle starts ***
-    P7OUT |= BIT0;
     CEINT &= ~CEIIE;
+    P7OUT |= BIT0;      // Indicate overhead
     // Take a Vcc reading
     adc_r1 = sample_vcc();
     // Clear and start RTC
     RTCCNT12 = 0;
     RTCCTL13 &= ~(RTCHOLD);  // Start RTC
+    P7OUT &= ~BIT0;     // Indicate overhead
     CEINT |= CEIIE;
-    P7OUT &= ~BIT0;
 
     // Sleep and wait for energy recharged
     storing_energy = 1;
@@ -602,16 +602,16 @@ void atom_func_start(uint8_t func_id) {
 
     // *** Charging cycle ends, discharging cycle starts ***
     CEINT &= ~CEIIE;
-    P7OUT |= BIT0;
+    P7OUT |= BIT0;      // Indicate overhead
     // Take a time reading, get T_charge
     rtc_cnt1 = RTCCNT12;  // T_charge
 
-    if (rtc_cnt1 > 10) {    // Don't profile if charging time is too short
+    if (rtc_cnt1 > MIN_PROFILING_RTC_CNT) {  // Don't profile if charging time is too short
         // Take a Vcc reading, get Delta V_charge
         adc_r2 = sample_vcc();
         d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
     }
-    P7OUT &= ~BIT0;
+    P7OUT &= ~BIT0;     // Indicate overhead
 
     P1OUT |= BIT0;  // Debug
     // Run the atomic function...
@@ -622,9 +622,9 @@ void atom_func_end(uint8_t func_id) {
     P1OUT &= ~BIT0;
 
     // *** Discharging cycle ends ***
-    P7OUT |= BIT0;
+    P7OUT |= BIT0;      // Indicate overhead
 
-    if (rtc_cnt1 > 10) {    // Don't profile if charging time is too short
+    if (rtc_cnt1 > MIN_PROFILING_RTC_CNT) {    // Don't profile if charging time is too short
         // Take a Vcc reading, get Delta V_exe
         adc_r1 = sample_vcc();
         d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
@@ -666,8 +666,8 @@ void atom_func_end(uint8_t func_id) {
             }
         }
     }
+    P7OUT &= ~BIT0;     // Indicate overhead
     CEINT |= CEIIE;
-    P7OUT &= ~BIT0;
 }
 
 #else
@@ -724,7 +724,114 @@ void atom_func_end(uint8_t func_id) {
 
 #endif
 
+uint16_t PERSISTENT param_min = 0xFFFF;
+uint16_t PERSISTENT param_max = 0;
+uint16_t PERSISTENT y_min = 0xFFFF;
+uint16_t PERSISTENT y_max = 0;
+// uint16_t PERSISTENT slope = 0;
+uint16_t PERSISTENT offset = UNIT_COMPE_ADC * 8;
+uint16_t PERSISTENT y_curr;
 
+void atom_func_start_linear(uint8_t func_id, uint16_t param) {
+    // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
+    // ..or continue directly if (Vcc > adapt_threshold)
+    if (param_max <= param_min) {
+        y_curr = offset;
+    } else {
+        y_curr = (y_max - y_min) * param / (param_max - param_min) + offset;
+    }
+
+    // *** Charging cycle starts ***
+    CEINT &= ~CEIIE;
+    P7OUT |= BIT0;      // Indicate overhead
+
+    // Take a Vcc reading
+    adc_r1 = sample_vcc();
+    // Clear and start RTC
+    RTCCNT12 = 0;
+    RTCCTL13 &= ~(RTCHOLD);  // Start RTC
+
+    P7OUT &= ~BIT0;     // Indicate overhead
+    CEINT |= CEIIE;
+
+    // Sleep and wait for energy recharged
+    storing_energy = 1;
+    set_CEREF1(y_curr / UNIT_COMPE_ADC + 1 + TARGET_END_THRESHOLD);
+    COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
+    set_CEREF1(TARGET_END_THRESHOLD);
+    storing_energy = 0;
+
+    // *** Charging cycle ends, discharging cycle starts ***
+    CEINT &= ~CEIIE;
+    P7OUT |= BIT0;      // Indicate overhead
+    // Take a time reading, get T_charge
+    rtc_cnt1 = RTCCNT12;  // T_charge
+
+    if (rtc_cnt1 > MIN_PROFILING_RTC_CNT) {  // Don't profile if charging time is too short
+        // Take a Vcc reading, get Delta V_charge
+        adc_r2 = sample_vcc();
+        d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
+    }
+    P7OUT &= ~BIT0;     // Indicate overhead
+
+    P1OUT |= BIT0;  // Debug
+    // Run the atomic function...
+}
+
+void atom_func_end_linear(uint8_t func_id, uint8_t param) {
+    // ...Atomic function ends
+    P1OUT &= ~BIT0;
+
+    // *** Discharging cycle ends ***
+    P7OUT |= BIT0;      // Indicate overhead
+
+    if (rtc_cnt1 > MIN_PROFILING_RTC_CNT) {    // Don't profile if charging time is too short
+        // Take a Vcc reading, get Delta V_exe
+        adc_r1 = sample_vcc();
+        d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
+
+        // Take a time reading, get T_exe
+        rtc_cnt2 = RTCCNT12 - rtc_cnt1;  // T_exe
+
+        // Stop RTC
+        RTCCTL13 |= RTCHOLD;
+
+        // Calculate the actual voltage drop
+#ifdef FLOAT_POINT_ARITHMETIC
+        // Float-point method
+        v_exe = (float) rtc_cnt2 / rtc_cnt1 * d_v_charge + d_v_discharge;
+#else
+        // Integer method
+        v_exe = (uint16_t) ((((rtc_cnt2 * 0x100) / rtc_cnt1) * d_v_charge +
+                            (d_v_discharge * 0x100)) / 0x100);
+#endif
+
+        if (v_exe < 4096) {  // Discard illegal results over 4096
+            if (param <= param_min) {
+                param_min = param;
+                y_min = v_exe;
+            }
+            if (param >= param_max) {
+                param_max = param;
+                y_max = v_exe;
+            }
+
+            offset = offset - y_curr / 4 + v_exe / 4;
+#ifdef DEBUG_UART
+            // UART debug info
+            char str_buffer[20];
+            uart_send_str(uitoa_10((uint16_t) v_exe, str_buffer));
+            uart_send_str(" ");
+            uart_send_str(uitoa_10((uint16_t) y_curr, str_buffer));
+            uart_send_str(" ");
+            uart_send_str(uitoa_10((uint16_t) offset, str_buffer));
+            uart_send_str("\n\r");
+#endif
+        }
+    }
+    P7OUT &= ~BIT0;     // Indicate overhead
+    CEINT |= CEIIE;
+}
 
 
 // Old code

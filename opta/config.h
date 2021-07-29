@@ -57,6 +57,7 @@
     // 30 : 3.4875
     // 31 : 3.6000
 
+#define MIN_PROFILING_RTC_CNT   10
 #define V_EXE_HISTORY_SIZE      10
 
 // #define FLOAT_POINT_ARITHMETIC  // Comment to use integer method

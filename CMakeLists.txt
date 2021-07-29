@@ -18,5 +18,6 @@ enable_language(C ASM)
 include_directories(${CMAKE_SOURCE_DIR})
 
 add_subdirectory(aes)
+add_subdirectory(dma)
 add_subdirectory(test)
 add_subdirectory(opta)
