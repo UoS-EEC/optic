@@ -1,0 +1,124 @@
+Task: DMA data transfer, 2048 bytes, RAM to FRAM
+    Time: ~268us
+    Profiling threshold: 2.25V
+    Date: 29 Jul 2021
+
+
+Online profiling results:
+
+699
+683
+711
+701
+704
+718
+691
+720
+719
+702
+V_exe_mean: 701 (705 corrected)
+738
+721
+688
+725
+687
+716
+725
+690
+727
+731
+V_exe_mean: 710 (715 corrected)
+711
+711
+695
+715
+734
+727
+734
+696
+704
+764
+V_exe_mean: 715 (719 corrected)
+707
+691
+710
+715
+690
+719
+711
+689
+722
+696
+V_exe_mean: 701 (705 corrected)
+696
+722
+716
+695
+712
+692
+726
+714
+690
+718
+V_exe_mean: 704 (708 corrected)
+706
+717
+694
+706
+724
+688
+715
+725
+688
+724
+V_exe_mean: 703 (709 corrected)
+711
+720
+686
+701
+719
+704
+682
+716
+716
+683
+V_exe_mean: 700 (704 corrected)
+702
+722
+707
+688
+715
+714
+692
+722
+710
+685
+V_exe_mean: 702 (706 corrected)
+705
+727
+705
+699
+722
+727
+696
+693
+719
+724
+V_exe_mean: 706 (712 corrected)
+692
+689
+694
+728
+706
+694
+726
+726
+696
+695
+V_exe_mean: 699 (705 corrected)
+
+
+Offline measured value:
+
+Mean: 665mV
+Converted to ADC reading: 745

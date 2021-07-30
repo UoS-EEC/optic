@@ -595,8 +595,9 @@ void atom_func_start(uint8_t func_id) {
 
     // Sleep and wait for energy recharged
     storing_energy = 1;
-    set_CEREF1(atom_state[func_id].adapt_threshold);
-    COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
+    set_CEREF1(atom_state[func_id].adapt_threshold);    // Adaptive threshold
+    // set_CEREF1(FIXED_PROFILING_THRESHOLD);              // Fixed profiling threshold
+    COMPARATOR_DELAY;   // May sleep here until Hi Vth is reached
     set_CEREF1(TARGET_END_THRESHOLD);
     storing_energy = 0;
 
@@ -640,7 +641,7 @@ void atom_func_end(uint8_t func_id) {
         // Float-point method
         v_exe = (float) rtc_cnt2 / rtc_cnt1 * d_v_charge + d_v_discharge;
 #else
-        // Integer method
+        // Integer method (preferred)
         v_exe = (uint16_t) ((((rtc_cnt2 * 0x100) / rtc_cnt1) * d_v_charge +
                             (d_v_discharge * 0x100)) / 0x100);
 #endif
@@ -649,6 +650,14 @@ void atom_func_end(uint8_t func_id) {
             atom_state[func_id].v_exe_mean -= atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
             atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] = v_exe;
             atom_state[func_id].v_exe_mean += atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
+
+#ifdef DEBUG_UART
+            // UART debug info
+            char str_buffer[20];
+            uart_send_str(uitoa_10(v_exe, str_buffer));
+            uart_send_str("\n\r");
+#endif
+
             if (++atom_state[func_id].v_exe_hist_index == V_EXE_HISTORY_SIZE) {
                 atom_state[func_id].v_exe_hist_index = 0;
                 // Adapt the next threshold
@@ -659,8 +668,9 @@ void atom_func_end(uint8_t func_id) {
 #ifdef DEBUG_UART
                 // UART debug info
                 char str_buffer[20];
+                uart_send_str("V_exe_mean: ");
                 uart_send_str(uitoa_10(atom_state[func_id].v_exe_mean, str_buffer));
-                uart_send_str(uitoa_10(atom_state[func_id].adapt_threshold, str_buffer));
+                // uart_send_str(uitoa_10(atom_state[func_id].adapt_threshold, str_buffer));
                 uart_send_str("\n\r");
 #endif
             }
@@ -677,18 +687,22 @@ void atom_func_start(uint8_t func_id) {
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
 
+    // *** Charging cycle starts ***
+
     // Sleep and wait for energy recharged
     storing_energy = 1;
-    set_CEREF1(atom_state[func_id].adapt_threshold);
+    // set_CEREF1(atom_state[func_id].adapt_threshold);    // Adaptive threshold
+    set_CEREF1(FIXED_PROFILING_THRESHOLD);              // Fixed profiling threshold
     COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
     set_CEREF1(TARGET_END_THRESHOLD);
     storing_energy = 0;
 
     // *** Charging cycle ends, discharging cycle starts ***
     // Disconnect supply
+    CEINT &= ~CEIIE;
     P1OUT |= BIT5;
     // Take a Vcc reading, get Delta V_charge
-    adc_r2 = sample_vcc();
+    // adc_r2 = sample_vcc();
 
     // Run the atomic function...
     P1OUT |= BIT0;  // Debug
@@ -702,24 +716,25 @@ void atom_func_end(uint8_t func_id) {
     // Reconnect supply
     P1OUT &= ~BIT5;
     // Take a Vcc reading, get Delta V_exe
-    adc_r1 = sample_vcc();
-    d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
+    // adc_r1 = sample_vcc();
+    // d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
 
-    atom_state[func_id].v_exe_mean -= atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
-    atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] = (uint16_t) d_v_discharge;
-    atom_state[func_id].v_exe_mean += atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
-    if (++atom_state[func_id].v_exe_hist_index == V_EXE_HISTORY_SIZE) {
-        atom_state[func_id].v_exe_hist_index = 0;
-    }
+    // atom_state[func_id].v_exe_mean -= atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
+    // atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] = (uint16_t) d_v_discharge;
+    // atom_state[func_id].v_exe_mean += atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
+    // if (++atom_state[func_id].v_exe_hist_index == V_EXE_HISTORY_SIZE) {
+    //     atom_state[func_id].v_exe_hist_index = 0;
+    // }
 
 #ifdef DEBUG_UART
     // UART debug info
     char str_buffer[20];
-    P1OUT |= BIT0;      // Debug
+    // P1OUT |= BIT0;      // Debug
     uart_send_str(uitoa_10(atom_state[func_id].v_exe_mean, str_buffer));
     uart_send_str("\n\r");
-    P1OUT &= ~BIT0;     // Debug
+    // P1OUT &= ~BIT0;     // Debug
 #endif
+    CEINT |= CEIIE;
 }
 
 #endif

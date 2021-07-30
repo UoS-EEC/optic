@@ -5,7 +5,6 @@
 #include <msp430fr5994.h>
 #include "opta/ic.h"
 
-#include "dma/dma.h"
 
 unsigned char input[2048] =
     "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo "
@@ -39,14 +38,21 @@ unsigned char input[2048] =
     "nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. "
     "Donec pede justo";
 
-unsigned char __attribute__((section(".persistent"))) output[2048];
-
+void uart_send_str_sz(char* str, unsigned sz) {
+    atom_func_start(UART_SEND_STR_SZ);
+    UCA0IFG &= ~UCTXIFG;
+    while (sz--) {
+        UCA0TXBUF = *str++;
+        while (!(UCA0IFG & UCTXIFG)) {}
+        UCA0IFG &= ~UCTXIFG;
+    }
+    atom_func_end(UART_SEND_STR_SZ);
+}
 
 int main(void) {
     for (;;) {
         // ******* DMA module test ******
-        dma(input, output, 1024);   // 2048 bytes
-        // dma(input, output, 512);    // 1024 bytes
+        uart_send_str_sz((char*) input, 0x80);     // Send 128 bytes
 
         __delay_cycles(0xFF);   // a short delay
     }
