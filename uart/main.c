@@ -38,6 +38,26 @@ unsigned char input[2048] =
     "nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. "
     "Donec pede justo";
 
+void uart_init(void) {
+    // P2.0 UCA0TXD
+    // P2.1 UCA0RXD
+    P2SEL0 &= ~(BIT0 | BIT1);
+    P2SEL1 |=   BIT0 | BIT1;
+
+    /* 115200 bps on 8MHz SMCLK */
+    UCA0CTL1 |= UCSWRST;                        // Reset State
+    UCA0CTL1 |= UCSSEL__SMCLK;                  // SMCLK
+
+    // 115200 baud rate
+    // 8M / 115200 = 69.444444...
+    // 69.444 = 16 * 4 + 5 + 0.444444....
+    UCA0BR0 = 4;
+    UCA0BR1 = 0;
+    UCA0MCTLW = UCOS16 | UCBRF0 | UCBRF2 | 0x5500;  // UCBRF = 5, UCBRS = 0x55
+
+    UCA0CTL1 &= ~UCSWRST;
+}
+
 void uart_send_str_sz(char* str, unsigned sz) {
     atom_func_start(UART_SEND_STR_SZ);
     UCA0IFG &= ~UCTXIFG;
@@ -46,15 +66,21 @@ void uart_send_str_sz(char* str, unsigned sz) {
         while (!(UCA0IFG & UCTXIFG)) {}
         UCA0IFG &= ~UCTXIFG;
     }
+    P7OUT |= BIT1;
+    __delay_cycles(0xF);
+    P7OUT &= ~BIT1;
     atom_func_end(UART_SEND_STR_SZ);
 }
 
 int main(void) {
-    for (;;) {
-        // ******* DMA module test ******
-        uart_send_str_sz((char*) input, 0x80);     // Send 128 bytes
+    uart_init();
 
-        __delay_cycles(0xFF);   // a short delay
+    for (;;) {
+        __bis_SR_register(LPM3_bits | GIE);  // Enter LPM3 with interrupts enabled
+        // ******* DMA module test ******
+        // for (int i = 0; i < 16; i++) {
+        //     uart_send_str_sz((char*) input + 128 * i, 0x80);     // Send 128 bytes
+        // }
     }
 
     return 0;

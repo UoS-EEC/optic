@@ -25,13 +25,9 @@ typedef struct AtomFuncState_s {
     // check_fail:
     // Set at function entry, reset at exit,
     // ..so read as '1' at the entry means the function failed before
-    // uint8_t check_fail;
+    uint8_t check_fail;
 
-    // start_thr:
-    // Resume threshold, represented as
-    // ..the resistor tap setting of the internal comparator
-    // uint8_t start_thr;
-
+    // Adaptive threhold, and profiling variables
     uint8_t  adapt_threshold;   // Init: PROFILING_INIT_THRESHOLD
     uint16_t v_exe_history[V_EXE_HISTORY_SIZE];
     uint8_t  v_exe_hist_index;  // Init: 0
@@ -438,7 +434,11 @@ void __attribute__((interrupt(COMP_E_VECTOR))) Comp_ISR(void) {
             if (storing_energy) {
                 // set_CEREF0(adapt_threshold);
                 set_CEREF0(CECTL2_H & CEREF1_H);
+#ifdef DEBUG_UART
+                set_CEREF1(TARGET_END_THRESHOLD - 1);
+#else
                 set_CEREF1(TARGET_END_THRESHOLD);
+#endif
             }
             CEINT = (CEINT & (~CEIIFG) & (~CEIFG) & (~CEIIE)) | CEIE;
 
@@ -523,7 +523,6 @@ iclib_boot() {
     // Minimized initialization stack for wakeup
     // ..to avoid being stuck in boot & fail
     gpio_init();
-    adc12_init();
     comp_init();
     storing_energy = 0;
 
@@ -534,6 +533,7 @@ iclib_boot() {
     // Processor wakes up after interrupt (Hi V threshold hit)
 
     // Remaining initialization stack for normal execution
+    adc12_init();
     clock_init();
     rtc_init();
 #ifdef DEBUG_UART
@@ -579,8 +579,11 @@ iclib_boot() {
 #ifndef DISCONNECT_SUPPLY_PROFILING
 // Connect supply profiling
 void atom_func_start(uint8_t func_id) {
-    // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
-    // ..or continue directly if (Vcc > adapt_threshold)
+    // If the task failed before, reset the profiling
+    if (atom_state[func_id].check_fail) {
+        atom_state[func_id].adapt_threshold = PROFILING_INIT_THRESHOLD;
+        atom_state[func_id].v_exe_hist_index = 0;
+    }
 
     // *** Charging cycle starts ***
     CEINT &= ~CEIIE;
@@ -593,12 +596,18 @@ void atom_func_start(uint8_t func_id) {
     P7OUT &= ~BIT0;     // Indicate overhead
     CEINT |= CEIIE;
 
+    // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
+    // ..or continue directly if (Vcc > adapt_threshold)
     // Sleep and wait for energy recharged
     storing_energy = 1;
     set_CEREF1(atom_state[func_id].adapt_threshold);    // Adaptive threshold
     // set_CEREF1(FIXED_PROFILING_THRESHOLD);              // Fixed profiling threshold
     COMPARATOR_DELAY;   // May sleep here until Hi Vth is reached
+#ifdef DEBUG_UART
+    set_CEREF1(TARGET_END_THRESHOLD - 1);
+#else
     set_CEREF1(TARGET_END_THRESHOLD);
+#endif
     storing_energy = 0;
 
     // *** Charging cycle ends, discharging cycle starts ***
@@ -612,6 +621,7 @@ void atom_func_start(uint8_t func_id) {
         adc_r2 = sample_vcc();
         d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
     }
+    atom_state[func_id].check_fail = 1;
     P7OUT &= ~BIT0;     // Indicate overhead
 
     P1OUT |= BIT0;  // Debug
@@ -624,6 +634,7 @@ void atom_func_end(uint8_t func_id) {
 
     // *** Discharging cycle ends ***
     P7OUT |= BIT0;      // Indicate overhead
+    atom_state[func_id].check_fail = 0;
 
     if (rtc_cnt1 > MIN_PROFILING_RTC_CNT) {    // Don't profile if charging time is too short
         // Take a Vcc reading, get Delta V_exe
@@ -647,9 +658,9 @@ void atom_func_end(uint8_t func_id) {
 #endif
 
         if (v_exe < 4096) {  // Discard illegal results over 4096
-            atom_state[func_id].v_exe_mean -= atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
+            // atom_state[func_id].v_exe_mean -= atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
             atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] = v_exe;
-            atom_state[func_id].v_exe_mean += atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
+            // atom_state[func_id].v_exe_mean += atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
 
 #ifdef DEBUG_UART
             // UART debug info
@@ -659,7 +670,15 @@ void atom_func_end(uint8_t func_id) {
 #endif
 
             if (++atom_state[func_id].v_exe_hist_index == V_EXE_HISTORY_SIZE) {
-                atom_state[func_id].v_exe_hist_index = 0;
+                atom_state[func_id].v_exe_hist_index = 0;   // Reset index
+
+                // Calculate v_exe_mean
+                atom_state[func_id].v_exe_mean = 0;
+                for (int i = 0; i < V_EXE_HISTORY_SIZE; i++) {
+                    atom_state[func_id].v_exe_mean += atom_state[func_id].v_exe_history[i];
+                }
+                atom_state[func_id].v_exe_mean /= V_EXE_HISTORY_SIZE;
+
                 // Adapt the next threshold
                 atom_state[func_id].adapt_threshold = (uint8_t) (atom_state[func_id].v_exe_mean / UNIT_COMPE_ADC) + 1 + TARGET_END_THRESHOLD;
                 if (atom_state[func_id].adapt_threshold > 31) {     // Prevent illegal values
@@ -668,7 +687,7 @@ void atom_func_end(uint8_t func_id) {
 #ifdef DEBUG_UART
                 // UART debug info
                 char str_buffer[20];
-                uart_send_str("V_exe_mean: ");
+                uart_send_str("mean: ");
                 uart_send_str(uitoa_10(atom_state[func_id].v_exe_mean, str_buffer));
                 // uart_send_str(uitoa_10(atom_state[func_id].adapt_threshold, str_buffer));
                 uart_send_str("\n\r");
@@ -684,11 +703,10 @@ void atom_func_end(uint8_t func_id) {
 
 // Disconnect supply profiling
 void atom_func_start(uint8_t func_id) {
+        // *** Charging cycle starts ***
+
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
-
-    // *** Charging cycle starts ***
-
     // Sleep and wait for energy recharged
     storing_energy = 1;
     // set_CEREF1(atom_state[func_id].adapt_threshold);    // Adaptive threshold

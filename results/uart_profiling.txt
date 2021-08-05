@@ -1,6 +1,6 @@
-Task: DMA data transfer, 2048 bytes, RAM to FRAM
-    Time: ~268us
-    Profiling threshold: 2.25V
+Task: UART data send, 128 bytes
+    Time: ~10.987ms
+    Profiling threshold: 2.7V
     Date: 29 Jul 2021
 
 
@@ -122,3 +122,134 @@ Offline measured value:
 
 Mean: 665mV
 Converted to ADC reading: 745
+
+
+
+
+
+Task: UART data send, 128 bytes
+    Time: ~10.987ms
+    Profiling threshold: 2.7V
+    Date: 5 Aug 2021
+
+Online profiling results:
+
+790
+767
+738
+690
+657
+644
+802
+736
+726
+732
+mean: 728
+734
+738
+708
+692
+626
+801
+728
+791
+778
+699
+mean: 729
+635
+791
+755
+767
+742
+723
+693
+624
+814
+734
+mean: 727
+719
+724
+701
+680
+650
+649
+770
+756
+759
+746
+mean: 715
+764
+761
+754
+726
+707
+664
+637
+796
+727
+732
+mean: 726
+750
+774
+775
+767
+774
+759
+757
+743
+737
+704
+mean: 754
+755
+764
+626
+653
+685
+722
+759
+807
+627
+669
+mean: 717
+660
+753
+748
+701
+661
+743
+743
+682
+787
+739
+mean: 721
+736
+725
+645
+790
+725
+712
+626
+802
+754
+713
+mean: 722
+637
+805
+744
+704
+632
+801
+742
+706
+634
+795
+mean: 720
+
+Offline measured value:
+645mV
+655mV
+655mV
+650mV
+655mV
+Mean: 652mV
+Converted to ADC reading: 741

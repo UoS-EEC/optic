@@ -18,6 +18,9 @@ voltage drop:
 voltage drop
 10 uF, no additional cap: 3.242 - 2.444 = 0.798 V, 2.987 - 2.189 = 0.798 V
 
+
+
+
 Task: AES encryption, 2048 bytes
     Time: ~3.27ms
     Profiling threshold: 2.3625V
@@ -142,3 +145,130 @@ Offline measured value:
 266mV
 Mean: 267mV
 Converted to ADC reading: 304
+
+
+
+Task: AES encryption, 2048 bytes
+    Time: ~3.27ms
+    Profiling threshold: 2.3625V
+    Date: 5 Aug 2021
+
+308
+303
+274
+305
+292
+297
+294
+300
+304
+275
+mean: 295
+307
+296
+298
+303
+283
+312
+315
+276
+291
+284
+mean: 296
+268
+313
+283
+300
+292
+289
+297
+291
+295
+277
+mean: 290
+308
+302
+288
+315
+296
+285
+303
+300
+291
+285
+mean: 297
+270
+301
+321
+276
+289
+280
+303
+314
+306
+296
+mean: 295
+284
+290
+302
+310
+322
+280
+293
+295
+309
+307
+mean: 299
+283
+265
+317
+287
+303
+293
+302
+297
+277
+315
+mean: 293
+280
+294
+301
+279
+310
+282
+302
+292
+295
+299
+mean: 293
+258
+302
+290
+292
+302
+284
+305
+275
+307
+288
+mean: 290
+274
+303
+299
+278
+313
+297
+294
+310
+285
+307
+mean: 296
+
+Offline measured value:
+266mV
+266mV
+266mV
+266mV
+266mV
+Mean: 266mV
+Converted to ADC reading: 302

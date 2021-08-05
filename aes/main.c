@@ -101,7 +101,9 @@ int main(void) {
         // aes_128_dec(key, iv, input, input, 128);
 
         // dummy_function();
-        __delay_cycles(0xFF);
+        P7OUT |= BIT1;
+        __delay_cycles(0xF);
+        P7OUT &= ~BIT1;
     }
 
     return 0;

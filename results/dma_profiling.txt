@@ -126,3 +126,135 @@ Offline measured value:
 46mV
 Mean: 45mV
 Converted to ADC reading: 52
+
+
+
+
+
+Task: DMA data transfer, 2048 bytes, RAM to FRAM
+    Time: ~268us
+    Profiling threshold: 2.25V
+    Date: 5 Aug 2021
+
+
+Online profiling results:
+
+55
+54
+48
+48
+50
+51
+47
+49
+51
+50
+mean: 50
+59
+49
+46
+53
+47
+48
+53
+49
+51
+52
+mean: 50
+55
+47
+51
+50
+47
+52
+52
+50
+53
+47
+mean: 50
+56
+48
+51
+52
+50
+48
+53
+54
+50
+54
+mean: 51
+57
+52
+51
+55
+53
+48
+50
+54
+49
+45
+mean: 51
+39
+50
+55
+51
+53
+49
+51
+48
+51
+50
+mean: 49
+40
+53
+52
+49
+47
+53
+51
+51
+47
+48
+mean: 49
+40
+54
+51
+48
+55
+47
+50
+51
+53
+51
+mean: 50
+48
+40
+51
+51
+50
+51
+49
+51
+51
+48
+mean: 49
+56
+50
+52
+50
+53
+52
+51
+51
+49
+53
+mean: 51
+
+Offline measured value:
+41mV
+46mV
+46mV
+46mV
+46mV
+Mean: 45mV
+Converted to ADC reading: 51
