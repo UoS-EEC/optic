@@ -62,7 +62,7 @@
 #define V_EXE_HISTORY_SIZE      10
 
 // #define FLOAT_POINT_ARITHMETIC  // Comment to use integer method
-#define DISCONNECT_SUPPLY_PROFILING     // Disconnect supply when profiling
+// #define DISCONNECT_SUPPLY_PROFILING     // Disconnect supply when profiling
                                         // Remember to configure P1.5 for short-circuiting
                                         // .. both in HW and SW
 #define DEBUG_GPIO

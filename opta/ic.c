@@ -265,7 +265,8 @@ static void gpio_init(void) {
     P2OUT = 0;
     P2DIR = 0xff;
     P3OUT = 0;
-    P3DIR |= 0xfe;  // P3.0 ADC/CompE
+    // P3DIR |= 0xfe;  // P3.0 CompE
+    P3DIR = 0xff;
     P4OUT = 0;
     P4DIR = 0xff;
     P5OUT = 0;
@@ -524,17 +525,22 @@ iclib_boot() {
     // ..to avoid being stuck in boot & fail
     gpio_init();
     comp_init();
+
     storing_energy = 0;
 
     P1OUT |= BIT4;  // Debug
-    __bis_SR_register(LPM3_bits | GIE);  // Enter LPM3 with interrupts enabled
+    // __bis_SR_register(LPM3_bits | GIE);  // Enter LPM3 with interrupts enabled
+    __bis_SR_register(LPM4_bits | GIE);  // For test
+    __bic_SR_register(OSCOFF);
     // Processor sleeps
     // ...
     // Processor wakes up after interrupt (Hi V threshold hit)
 
     // Remaining initialization stack for normal execution
-    adc12_init();
+    P1OUT |= BIT0;
     clock_init();
+    P1OUT &= ~BIT0;
+    adc12_init();
     rtc_init();
 #ifdef DEBUG_UART
     uart_init();

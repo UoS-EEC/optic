@@ -101,9 +101,12 @@ int main(void) {
         // aes_128_dec(key, iv, input, input, 128);
 
         // dummy_function();
+
+        // Indicate completion
         P7OUT |= BIT1;
         __delay_cycles(0xF);
         P7OUT &= ~BIT1;
+        // __bis_SR_register(LPM3_bits | GIE);
     }
 
     return 0;
