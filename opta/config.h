@@ -22,8 +22,8 @@
 #define COMPE_DEFAULT_HI_THRESHOLD    0x0017    // 23
 #define COMPE_DEFAULT_LO_THRESHOLD    0x1100    // 17
 #define TARGET_END_THRESHOLD        16
-#define PROFILING_INIT_THRESHOLD    28
-#define FIXED_PROFILING_THRESHOLD   19
+#define PROFILING_INIT_THRESHOLD    26
+#define FIXED_PROFILING_THRESHOLD   26
     // CEREF_n : V threshold (Volt)
     //  0 : 0.1125
     //  1 : 0.2250
@@ -58,11 +58,11 @@
     // 30 : 3.4875
     // 31 : 3.6000
 
-#define MIN_PROFILING_RTC_CNT   10
-#define V_EXE_HISTORY_SIZE      10
+#define MIN_PROFILING_TIMER_CNT     4
+#define V_EXE_HISTORY_SIZE          10
 
 // #define FLOAT_POINT_ARITHMETIC  // Comment to use integer method
-// #define DISCONNECT_SUPPLY_PROFILING     // Disconnect supply when profiling
+#define DISCONNECT_SUPPLY_PROFILING     // Disconnect supply when profiling
                                         // Remember to configure P1.5 for short-circuiting
                                         // .. both in HW and SW
 #define DEBUG_GPIO

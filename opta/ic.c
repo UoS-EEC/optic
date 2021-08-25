@@ -57,14 +57,14 @@ uint16_t adc_r2;
 #ifdef FLOAT_POINT_ARITHMETIC
 int16_t d_v_charge;
 int16_t d_v_discharge;
-int16_t rtc_cnt1;
-int16_t rtc_cnt2;
+int16_t timer_cnt1;
+int16_t timer_cnt2;
 float v_exe;
 #else
 uint32_t d_v_charge;
 uint32_t d_v_discharge;
-uint32_t rtc_cnt1;
-uint32_t rtc_cnt2;
+uint32_t timer_cnt1;
+uint32_t timer_cnt2;
 uint16_t v_exe;
 #endif
 
@@ -229,34 +229,36 @@ static void restore(void) {
 
 static void clock_init(void) {
     CSCTL0_H = CSKEY_H;  // Unlock register
-    CSCTL1 |= DCOFSEL_6;  // DCO 8MHz
 
-    // Set ACLK = LFXT(if enabled)/VLO; SMCLK = DCO; MCLK = DCO;
-    CSCTL2 = SELA_0 + SELS_3 + SELM_3;
+    CSCTL1 = DCOFSEL_6;  // DCO = 8 MHz
+
+    // Set ACLK = VLO (~10kHz); SMCLK = DCO; MCLK = DCO;
+    CSCTL2 = SELA_1 + SELS_3 + SELM_3;
 
     // ACLK: Source/1; SMCLK: Source/1; MCLK: Source/1;
     CSCTL3 = DIVA_0 + DIVS_0 + DIVM_0;      // SMCLK = MCLK = 8 MHz
 
-    // LFXT 32kHz crystal for RTC
-    PJSEL0 = BIT4 | BIT5;                   // Initialize LFXT pins
-    CSCTL4 &= ~LFXTOFF;                     // Enable LFXT
-    do {
-      CSCTL5 &= ~LFXTOFFG;                  // Clear LFXT fault flag
-      SFRIFG1 &= ~OFIFG;
-    } while (SFRIFG1 & OFIFG);              // Test oscillator fault flag
+    // LFXT 32kHz crystal for RTC, not used (due to start-up time & current issue)
+    // ..~240ms start-up settling time, and ~100uA current draw
+    // PJSEL0 = BIT4 | BIT5;                   // Initialize LFXT pins
+    // CSCTL4 &= ~LFXTOFF;                     // Enable LFXT
+    // do {
+    //   CSCTL5 &= ~LFXTOFFG;                  // Clear LFXT fault flag
+    //   SFRIFG1 &= ~OFIFG;
+    // } while (SFRIFG1 & OFIFG);              // Test oscillator fault flag
 
     CSCTL0_H = 0;  // Lock Register
 }
 
 // RTC Counter mode setup, directly clocked from 32-kHz crystal
-static void rtc_init(void) {
-    // Setup RTC Timer
-    RTCCTL0_H = RTCKEY_H;                   // Unlock RTC
-    RTCCTL13 = RTCTEV_3 | RTCHOLD;  // Counter Mode, clocked from 32-kHz crystal
-    // ..32-bit ovf (but not used)
+// static void rtc_init(void) {
+//     // Setup RTC Timer
+//     RTCCTL0_H = RTCKEY_H;                   // Unlock RTC
+//     RTCCTL13 = RTCTEV_3 | RTCHOLD;  // Counter Mode, clocked from 32-kHz crystal
+//     // ..32-bit ovf (but not used)
 
-    // RTCCTL13 &= ~(RTCHOLD);                 // Start RTC
-}
+//     // RTCCTL13 &= ~(RTCHOLD);                 // Start RTC
+// }
 
 static void gpio_init(void) {
     // Initialize all pins to output low to reduce power consumption
@@ -265,7 +267,6 @@ static void gpio_init(void) {
     P2OUT = 0;
     P2DIR = 0xff;
     P3OUT = 0;
-    // P3DIR |= 0xfe;  // P3.0 CompE
     P3DIR = 0xff;
     P4OUT = 0;
     P4DIR = 0xff;
@@ -345,7 +346,7 @@ static void comp_init(void) {
     P1SEL1 |= BIT2;                 // Select COUT function on P1.2/COUT
 
     // Setup Comparator_E
-    CECTL1 = CEPWRMD_1|  // 0 for High-speed mode
+    CECTL1 = CEPWRMD_2|  // 0 for High-speed mode
                          // 1 for Normal power mode
                          // 2 for Ultra-low power mode
              CEF      |  // Output filter enabled
@@ -529,8 +530,7 @@ iclib_boot() {
     storing_energy = 0;
 
     P1OUT |= BIT4;  // Debug
-    // __bis_SR_register(LPM3_bits | GIE);  // Enter LPM3 with interrupts enabled
-    __bis_SR_register(LPM4_bits | GIE);  // For test
+    __bis_SR_register(LPM4_bits | GIE);  // Enter LPM4 with interrupts enabled
     __bic_SR_register(OSCOFF);
     // Processor sleeps
     // ...
@@ -541,7 +541,6 @@ iclib_boot() {
     clock_init();
     P1OUT &= ~BIT0;
     adc12_init();
-    rtc_init();
 #ifdef DEBUG_UART
     uart_init();
 #endif
@@ -584,21 +583,24 @@ iclib_boot() {
 
 #ifndef DISCONNECT_SUPPLY_PROFILING
 // Connect supply profiling
+
 void atom_func_start(uint8_t func_id) {
     // If the task failed before, reset the profiling
     if (atom_state[func_id].check_fail) {
-        atom_state[func_id].adapt_threshold = PROFILING_INIT_THRESHOLD;
+        // atom_state[func_id].adapt_threshold = PROFILING_INIT_THRESHOLD;
+        atom_state[func_id].adapt_threshold++;   // Increment threshold
         atom_state[func_id].v_exe_hist_index = 0;
     }
 
     // *** Charging cycle starts ***
     CEINT &= ~CEIIE;
     P7OUT |= BIT0;      // Indicate overhead
+
     // Take a Vcc reading
     adc_r1 = sample_vcc();
-    // Clear and start RTC
-    RTCCNT12 = 0;
-    RTCCTL13 &= ~(RTCHOLD);  // Start RTC
+    // Clear and start Timer A0
+    TA0CTL = TASSEL__ACLK | MC__CONTINUOUS | TACLR;
+
     P7OUT &= ~BIT0;     // Indicate overhead
     CEINT |= CEIIE;
 
@@ -620,9 +622,9 @@ void atom_func_start(uint8_t func_id) {
     CEINT &= ~CEIIE;
     P7OUT |= BIT0;      // Indicate overhead
     // Take a time reading, get T_charge
-    rtc_cnt1 = RTCCNT12;  // T_charge
+    timer_cnt1 = TA0R;  // T_charge
 
-    if (rtc_cnt1 > MIN_PROFILING_RTC_CNT) {  // Don't profile if charging time is too short
+    if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {  // Don't profile if charging time is too short
         // Take a Vcc reading, get Delta V_charge
         adc_r2 = sample_vcc();
         d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
@@ -630,36 +632,42 @@ void atom_func_start(uint8_t func_id) {
     atom_state[func_id].check_fail = 1;
     P7OUT &= ~BIT0;     // Indicate overhead
 
-    P1OUT |= BIT0;  // Debug
+    P1OUT |= BIT5;      // Disconnect supply
+    P1OUT |= BIT0;      // Debug
     // Run the atomic function...
 }
 
 void atom_func_end(uint8_t func_id) {
     // ...Atomic function ends
     P1OUT &= ~BIT0;
+    P1OUT &= ~BIT5;     // Reconnect supply
 
     // *** Discharging cycle ends ***
     P7OUT |= BIT0;      // Indicate overhead
-    atom_state[func_id].check_fail = 0;
-
-    if (rtc_cnt1 > MIN_PROFILING_RTC_CNT) {    // Don't profile if charging time is too short
+    atom_state[func_id].check_fail = 0;     // Succefully complete
+    if (!(CECTL1 & CEOUT)) {     // If target end threshold is not met
+        atom_state[func_id].adapt_threshold++;
+        atom_state[func_id].v_exe_hist_index = 0;
+        TA0CTL &= ~MC;  // Stop Timer A0
+    }
+    if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {    // Don't profile if charging time is too short
         // Take a Vcc reading, get Delta V_exe
         adc_r1 = sample_vcc();
         d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
 
         // Take a time reading, get T_exe
-        rtc_cnt2 = RTCCNT12 - rtc_cnt1;  // T_exe
+        timer_cnt2 = TA0R - timer_cnt1;  // T_exe
 
-        // Stop RTC
-        RTCCTL13 |= RTCHOLD;
+        // Stop Timer A0
+        TA0CTL &= ~MC;
 
         // Calculate the actual voltage drop
 #ifdef FLOAT_POINT_ARITHMETIC
         // Float-point method
-        v_exe = (float) rtc_cnt2 / rtc_cnt1 * d_v_charge + d_v_discharge;
+        v_exe = (float) timer_cnt2 / timer_cnt1 * d_v_charge + d_v_discharge;
 #else
         // Integer method (preferred)
-        v_exe = (uint16_t) ((((rtc_cnt2 * 0x100) / rtc_cnt1) * d_v_charge +
+        v_exe = (uint16_t) ((((timer_cnt2 * 0x100) / timer_cnt1) * d_v_charge +
                             (d_v_discharge * 0x100)) / 0x100);
 #endif
 
@@ -671,7 +679,10 @@ void atom_func_end(uint8_t func_id) {
 #ifdef DEBUG_UART
             // UART debug info
             char str_buffer[20];
-            uart_send_str(uitoa_10(v_exe, str_buffer));
+            // uart_send_str(uitoa_10(v_exe, str_buffer));
+            uart_send_str(uitoa_10(timer_cnt1, str_buffer));
+            uart_send_str(" ");
+            uart_send_str(uitoa_10(timer_cnt2, str_buffer));
             uart_send_str("\n\r");
 #endif
 
@@ -692,7 +703,7 @@ void atom_func_end(uint8_t func_id) {
                 }
 #ifdef DEBUG_UART
                 // UART debug info
-                char str_buffer[20];
+                // char str_buffer[20];
                 uart_send_str("mean: ");
                 uart_send_str(uitoa_10(atom_state[func_id].v_exe_mean, str_buffer));
                 // uart_send_str(uitoa_10(atom_state[func_id].adapt_threshold, str_buffer));
@@ -701,13 +712,14 @@ void atom_func_end(uint8_t func_id) {
             }
         }
     }
+
     P7OUT &= ~BIT0;     // Indicate overhead
     CEINT |= CEIIE;
 }
 
 #else
-
 // Disconnect supply profiling
+
 void atom_func_start(uint8_t func_id) {
         // *** Charging cycle starts ***
 
@@ -763,6 +775,9 @@ void atom_func_end(uint8_t func_id) {
 
 #endif
 
+
+// Linear adaptation utility
+
 uint16_t PERSISTENT param_min = 0xFFFF;
 uint16_t PERSISTENT param_max = 0;
 uint16_t PERSISTENT y_min = 0xFFFF;
@@ -804,9 +819,9 @@ void atom_func_start_linear(uint8_t func_id, uint16_t param) {
     CEINT &= ~CEIIE;
     P7OUT |= BIT0;      // Indicate overhead
     // Take a time reading, get T_charge
-    rtc_cnt1 = RTCCNT12;  // T_charge
+    timer_cnt1 = RTCCNT12;  // T_charge
 
-    if (rtc_cnt1 > MIN_PROFILING_RTC_CNT) {  // Don't profile if charging time is too short
+    if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {  // Don't profile if charging time is too short
         // Take a Vcc reading, get Delta V_charge
         adc_r2 = sample_vcc();
         d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
@@ -824,13 +839,13 @@ void atom_func_end_linear(uint8_t func_id, uint8_t param) {
     // *** Discharging cycle ends ***
     P7OUT |= BIT0;      // Indicate overhead
 
-    if (rtc_cnt1 > MIN_PROFILING_RTC_CNT) {    // Don't profile if charging time is too short
+    if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {    // Don't profile if charging time is too short
         // Take a Vcc reading, get Delta V_exe
         adc_r1 = sample_vcc();
         d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
 
         // Take a time reading, get T_exe
-        rtc_cnt2 = RTCCNT12 - rtc_cnt1;  // T_exe
+        timer_cnt2 = RTCCNT12 - timer_cnt1;  // T_exe
 
         // Stop RTC
         RTCCTL13 |= RTCHOLD;
@@ -838,10 +853,10 @@ void atom_func_end_linear(uint8_t func_id, uint8_t param) {
         // Calculate the actual voltage drop
 #ifdef FLOAT_POINT_ARITHMETIC
         // Float-point method
-        v_exe = (float) rtc_cnt2 / rtc_cnt1 * d_v_charge + d_v_discharge;
+        v_exe = (float) timer_cnt2 / timer_cnt1 * d_v_charge + d_v_discharge;
 #else
         // Integer method
-        v_exe = (uint16_t) ((((rtc_cnt2 * 0x100) / rtc_cnt1) * d_v_charge +
+        v_exe = (uint16_t) ((((timer_cnt2 * 0x100) / timer_cnt1) * d_v_charge +
                             (d_v_discharge * 0x100)) / 0x100);
 #endif
 

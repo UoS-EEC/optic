@@ -1,6 +1,9 @@
+// Copyright (c) 2020-2021, University of Southampton.
+// All rights reserved.
+// SPDX-License-Identifier: MIT
 #include <msp430fr5994.h>
 
-#include "uart.h"
+#include "test/uart.h"
 
 void uart_init(void) {
     // P2.0 UCA0TXD

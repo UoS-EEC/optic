@@ -78,8 +78,8 @@ int main(void) {
     for (;;) {
         // __bis_SR_register(LPM3_bits | GIE);  // Enter LPM3 with interrupts enabled
         // ******* DMA module test ******
-        for (int i = 0; i < 16; i++) {
-            uart_send_str_sz((char*) input + 128 * i, 0x80);     // Send 128 bytes
+        for (int i = 0; i < 8; i++) {
+            uart_send_str_sz((char*) input + 0x100 * i, 0x100);     // Send 256 bytes
         }
     }
 
