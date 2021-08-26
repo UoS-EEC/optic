@@ -16,6 +16,8 @@ void atom_func_end_linear(uint8_t func_id, uint8_t param);
 // Configs
 #define AES_128_ENC         0
 #define AES_128_DEC         1
+#define AES_256_ENC         0
+#define AES_256_DEC         1
 
 #define DMA                 0
 

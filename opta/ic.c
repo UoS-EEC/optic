@@ -77,8 +77,8 @@ uint8_t storing_energy;
 // uint8_t PERSISTENT i = 0;
 
 // Function declarations
-static void backup(void);
-static void restore(void);
+// static void backup(void);
+// static void restore(void);
 
 void __attribute__((section(".ramtext"), naked))
 fastmemcpy(uint8_t *dst, uint8_t *src, size_t len) {
@@ -104,128 +104,128 @@ fastmemcpy(uint8_t *dst, uint8_t *src, size_t len) {
             "  ret     \n");
 }
 
-static void backup(void) {
-    // !!! *** DONT TOUCH THE STACK HERE *** !!!
+// static void backup(void) {
+//     // !!! *** DONT TOUCH THE STACK HERE *** !!!
 
-    // copy Core registers to FRAM
-    // R0 : PC, save through return_address, not here
-    __asm__("mov   sp, &register_snapshot\n"
-            "mov   sr, &register_snapshot+2\n"
-            "mov   r3, &register_snapshot+4\n"
-            "mov   r4, &register_snapshot+6\n"
-            "mov   r5, &register_snapshot+8\n"
-            "mov   r6, &register_snapshot+10\n"
-            "mov   r7, &register_snapshot+12\n"
-            "mov   r8, &register_snapshot+14\n"
-            "mov   r9, &register_snapshot+16\n"
-            "mov   r10, &register_snapshot+18\n"
-            "mov   r11, &register_snapshot+20\n"
-            "mov   r12, &register_snapshot+22\n"
-            "mov   r13, &register_snapshot+24\n"
-            "mov   r14, &register_snapshot+26\n"
-            "mov   r15, &register_snapshot+28\n");
+//     // copy Core registers to FRAM
+//     // R0 : PC, save through return_address, not here
+//     __asm__("mov   sp, &register_snapshot\n"
+//             "mov   sr, &register_snapshot+2\n"
+//             "mov   r3, &register_snapshot+4\n"
+//             "mov   r4, &register_snapshot+6\n"
+//             "mov   r5, &register_snapshot+8\n"
+//             "mov   r6, &register_snapshot+10\n"
+//             "mov   r7, &register_snapshot+12\n"
+//             "mov   r8, &register_snapshot+14\n"
+//             "mov   r9, &register_snapshot+16\n"
+//             "mov   r10, &register_snapshot+18\n"
+//             "mov   r11, &register_snapshot+20\n"
+//             "mov   r12, &register_snapshot+22\n"
+//             "mov   r13, &register_snapshot+24\n"
+//             "mov   r14, &register_snapshot+26\n"
+//             "mov   r15, &register_snapshot+28\n");
 
 
-    // Return to the next line of backup();
-    return_address = *(uint16_t *)(__get_SP_register());
+//     // Return to the next line of backup();
+//     return_address = *(uint16_t *)(__get_SP_register());
 
-    // Save a snapshot of volatile memory
-    // allocate to .boot_stack to prevent being overwritten when copying .bss
-    static uint8_t *src __attribute__((section(".boot_stack")));
-    static uint8_t *dst __attribute__((section(".boot_stack")));
-    static size_t len __attribute__((section(".boot_stack")));
+//     // Save a snapshot of volatile memory
+//     // allocate to .boot_stack to prevent being overwritten when copying .bss
+//     static uint8_t *src __attribute__((section(".boot_stack")));
+//     static uint8_t *dst __attribute__((section(".boot_stack")));
+//     static size_t len __attribute__((section(".boot_stack")));
 
-    // bss
-    src = &__bssstart;
-    dst = bss_snapshot;
-    len = &__bssend - &__bssstart;
-    fastmemcpy(dst, src, len);
+//     // bss
+//     src = &__bssstart;
+//     dst = bss_snapshot;
+//     len = &__bssend - &__bssstart;
+//     fastmemcpy(dst, src, len);
 
-    // data
-    src = &__datastart;
-    dst = data_snapshot;
-    len = &__dataend - &__datastart;
-    fastmemcpy(dst, src, len);
+//     // data
+//     src = &__datastart;
+//     dst = data_snapshot;
+//     len = &__dataend - &__datastart;
+//     fastmemcpy(dst, src, len);
 
-    // stack
-    // stack_low-----[SP-------stack_high]
-#ifdef TRACK_STACK
-    src = (uint8_t *)register_snapshot[0];  // Saved SP
-#else
-    src = &__stack;
-#endif
-    len = &__stackend - src;
-    uint16_t offset = (uint16_t)(src - &__stack);
-    dst = (uint8_t *)&stack_snapshot[offset];
-    fastmemcpy(dst, src, len);
+//     // stack
+//     // stack_low-----[SP-------stack_high]
+// #ifdef TRACK_STACK
+//     src = (uint8_t *)register_snapshot[0];  // Saved SP
+// #else
+//     src = &__stack;
+// #endif
+//     len = &__stackend - src;
+//     uint16_t offset = (uint16_t)(src - &__stack);
+//     dst = (uint8_t *)&stack_snapshot[offset];
+//     fastmemcpy(dst, src, len);
 
-    snapshot_valid = 1;  // For now, don't check snapshot valid
-    suspending = 1;
-}
+//     snapshot_valid = 1;  // For now, don't check snapshot valid
+//     suspending = 1;
+// }
 
-static void restore(void) {
-    // allocate to .boot_stack to prevent being overwritten when copying .bss
-    static uint8_t *src __attribute__((section(".boot_stack")));
-    static uint8_t *dst __attribute__((section(".boot_stack")));
-    static size_t len __attribute__((section(".boot_stack")));
+// static void restore(void) {
+//     // allocate to .boot_stack to prevent being overwritten when copying .bss
+//     static uint8_t *src __attribute__((section(".boot_stack")));
+//     static uint8_t *dst __attribute__((section(".boot_stack")));
+//     static size_t len __attribute__((section(".boot_stack")));
 
-    snapshot_valid = 0;
-    /* comment "snapshot_valid = 0"
-       for being able to restore from an old snapshot
-       if backup() fails to complete
-       Here, introducing code re-execution? */
+//     snapshot_valid = 0;
+//     /* comment "snapshot_valid = 0"
+//        for being able to restore from an old snapshot
+//        if backup() fails to complete
+//        Here, introducing code re-execution? */
 
-    suspending = 0;
+//     suspending = 0;
 
-    // data
-    dst = &__datastart;
-    src = data_snapshot;
-    len = &__dataend - &__datastart;
-    fastmemcpy(dst, src, len);
+//     // data
+//     dst = &__datastart;
+//     src = data_snapshot;
+//     len = &__dataend - &__datastart;
+//     fastmemcpy(dst, src, len);
 
-    // bss
-    dst = &__bssstart;
-    src = bss_snapshot;
-    len = &__bssend - &__bssstart;
-    fastmemcpy(dst, src, len);
+//     // bss
+//     dst = &__bssstart;
+//     src = bss_snapshot;
+//     len = &__bssend - &__bssstart;
+//     fastmemcpy(dst, src, len);
 
-    // stack
-#ifdef TRACK_STACK
-    dst = (uint8_t *)register_snapshot[0];  // Saved stack pointer
-#else
-    dst = &__stack;  // Save full stack
-#endif
-    len = &__stackend - dst;
-    uint16_t offset = (uint16_t)(dst - &__stack);  // word offset
-    src = &stack_snapshot[offset];
+//     // stack
+// #ifdef TRACK_STACK
+//     dst = (uint8_t *)register_snapshot[0];  // Saved stack pointer
+// #else
+//     dst = &__stack;  // Save full stack
+// #endif
+//     len = &__stackend - dst;
+//     uint16_t offset = (uint16_t)(dst - &__stack);  // word offset
+//     src = &stack_snapshot[offset];
 
-    /* Move to separate stack space before restoring original stack. */
-    // __set_SP_register((unsigned short)&__cp_stack_high);  // Move to separate stack
-    fastmemcpy(dst, src, len);  // Restore default stack
-    // Can't use stack here!
+//     /* Move to separate stack space before restoring original stack. */
+//     // __set_SP_register((unsigned short)&__cp_stack_high);  // Move to separate stack
+//     fastmemcpy(dst, src, len);  // Restore default stack
+//     // Can't use stack here!
 
-    // Restore processor registers
-    __asm__("mov   &register_snapshot, sp\n"
-            "nop\n"
-            "mov   &register_snapshot+2, sr\n"
-            "nop\n"
-            "mov   &register_snapshot+4, r3\n"
-            "mov   &register_snapshot+6, r4\n"
-            "mov   &register_snapshot+8, r5\n"
-            "mov   &register_snapshot+10, r6\n"
-            "mov   &register_snapshot+12, r7\n"
-            "mov   &register_snapshot+14, r8\n"
-            "mov   &register_snapshot+16, r9\n"
-            "mov   &register_snapshot+18, r10\n"
-            "mov   &register_snapshot+20, r11\n"
-            "mov   &register_snapshot+22, r12\n"
-            "mov   &register_snapshot+24, r13\n"
-            "mov   &register_snapshot+26, r14\n"
-            "mov   &register_snapshot+28, r15\n");
+//     // Restore processor registers
+//     __asm__("mov   &register_snapshot, sp\n"
+//             "nop\n"
+//             "mov   &register_snapshot+2, sr\n"
+//             "nop\n"
+//             "mov   &register_snapshot+4, r3\n"
+//             "mov   &register_snapshot+6, r4\n"
+//             "mov   &register_snapshot+8, r5\n"
+//             "mov   &register_snapshot+10, r6\n"
+//             "mov   &register_snapshot+12, r7\n"
+//             "mov   &register_snapshot+14, r8\n"
+//             "mov   &register_snapshot+16, r9\n"
+//             "mov   &register_snapshot+18, r10\n"
+//             "mov   &register_snapshot+20, r11\n"
+//             "mov   &register_snapshot+22, r12\n"
+//             "mov   &register_snapshot+24, r13\n"
+//             "mov   &register_snapshot+26, r14\n"
+//             "mov   &register_snapshot+28, r15\n");
 
-    // Restore return address
-    *(uint16_t *)(__get_SP_register()) = return_address;
-}
+//     // Restore return address
+//     *(uint16_t *)(__get_SP_register()) = return_address;
+// }
 
 static void clock_init(void) {
     CSCTL0_H = CSKEY_H;  // Unlock register
@@ -313,7 +313,7 @@ static void adc12_init(void) {
     P3SEL0 |= BIT1;
     ADC12MCTL0 = ADC12INCH_13|      // Select ch A13 at P3.1
                  ADC12VRSEL_1;      // VR+ = VREF buffered, VR- = Vss
-    // while (!(REFCTL0 & REFGENRDY)) {}   // Wait for reference generator to settle
+    while (!(REFCTL0 & REFGENRDY)) {}   // Wait for reference generator to settle
     // ADC12IER0 = ADC12IE0;  // Enable ADC conv complete interrupt
 }
 
@@ -352,9 +352,8 @@ static void comp_init(void) {
              CEF      |  // Output filter enabled
              CEFDLY_3;   // Output filter delay 3600 ns
 
-    CECTL2 =  // CEREFACC |  // Enable (low-power low-accuracy) clocked mode
-                         // ..(can be overwritten by ADC static mode)
-             CEREFL_1 |  // VREF 1.2 V is selected
+    // Using CEREFACC here can cause inaccurate comparator function
+    CECTL2 = CEREFL_1 |  // VREF 1.2 V is selected
              CERS_2   |  // VREF applied to R-ladder
              CERSEL   |  // to -terminal
              COMPE_DEFAULT_HI_THRESHOLD|    // Hi V_th
@@ -537,9 +536,7 @@ iclib_boot() {
     // Processor wakes up after interrupt (Hi V threshold hit)
 
     // Remaining initialization stack for normal execution
-    P1OUT |= BIT0;
     clock_init();
-    P1OUT &= ~BIT0;
     adc12_init();
 #ifdef DEBUG_UART
     uart_init();
@@ -632,7 +629,6 @@ void atom_func_start(uint8_t func_id) {
     atom_state[func_id].check_fail = 1;
     P7OUT &= ~BIT0;     // Indicate overhead
 
-    P1OUT |= BIT5;      // Disconnect supply
     P1OUT |= BIT0;      // Debug
     // Run the atomic function...
 }
@@ -640,7 +636,11 @@ void atom_func_start(uint8_t func_id) {
 void atom_func_end(uint8_t func_id) {
     // ...Atomic function ends
     P1OUT &= ~BIT0;
-    P1OUT &= ~BIT5;     // Reconnect supply
+
+    // Indicate completion
+    P7OUT |= BIT1;
+    __delay_cycles(0xF);
+    P7OUT &= ~BIT1;
 
     // *** Discharging cycle ends ***
     P7OUT |= BIT0;      // Indicate overhead
@@ -747,6 +747,11 @@ void atom_func_start(uint8_t func_id) {
 void atom_func_end(uint8_t func_id) {
     // ...Atomic function ends
     P1OUT &= ~BIT0;
+
+    // Indicate completion
+    P7OUT |= BIT1;
+    __delay_cycles(0xF);
+    P7OUT &= ~BIT1;
 
     // *** Discharging cycle ends ***
     // Reconnect supply
