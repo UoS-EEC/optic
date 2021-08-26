@@ -644,12 +644,14 @@ void atom_func_end(uint8_t func_id) {
 
     // *** Discharging cycle ends ***
     P7OUT |= BIT0;      // Indicate overhead
+
     atom_state[func_id].check_fail = 0;     // Succefully complete
     if (!(CECTL1 & CEOUT)) {     // If target end threshold is not met
         atom_state[func_id].adapt_threshold++;
         atom_state[func_id].v_exe_hist_index = 0;
         TA0CTL &= ~MC;  // Stop Timer A0
     }
+
     if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {    // Don't profile if charging time is too short
         // Take a Vcc reading, get Delta V_exe
         adc_r1 = sample_vcc();

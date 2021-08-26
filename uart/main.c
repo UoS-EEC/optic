@@ -6,7 +6,7 @@
 #include "opta/ic.h"
 
 
-unsigned char input[2048] =
+unsigned char __attribute__((section(".persistent"))) input[2048] =
     "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo "
     "ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis "
     "dis parturient montes, nascetur ridiculus mus. Donec quam felis, "
@@ -78,8 +78,8 @@ int main(void) {
     for (;;) {
         // __bis_SR_register(LPM3_bits | GIE);  // Enter LPM3 with interrupts enabled
         // ******* DMA module test ******
-        for (int i = 0; i < 8; i++) {
-            uart_send_str_sz((char*) input + 0x100 * i, 0x100);     // Send 256 bytes
+        for (int i = 0; i < 4; i++) {
+            uart_send_str_sz((char*) input + 0x200 * i, 0x200);     // Send 512 bytes
         }
     }
 

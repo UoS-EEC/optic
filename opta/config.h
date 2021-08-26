@@ -23,7 +23,7 @@
 #define COMPE_DEFAULT_LO_THRESHOLD    0x1000    // 16
 #define TARGET_END_THRESHOLD        15
 #define PROFILING_INIT_THRESHOLD    26
-#define FIXED_PROFILING_THRESHOLD   17
+#define FIXED_PROFILING_THRESHOLD   23
     // CEREF_n : V threshold (Volt)
     //  0 : 0.1125
     //  1 : 0.2250
