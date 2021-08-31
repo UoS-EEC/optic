@@ -59,27 +59,32 @@ void uart_init(void) {
 }
 
 void uart_send_str_sz(char* str, unsigned sz) {
-    atom_func_start(UART_SEND_STR_SZ);
+    // atom_func_start(UART_SEND_STR_SZ);
+    atom_func_start_linear(UART_SEND_STR_SZ, sz / 0x20);
+
     UCA0IFG &= ~UCTXIFG;
     while (sz--) {
         UCA0TXBUF = *str++;
         while (!(UCA0IFG & UCTXIFG)) {}
         UCA0IFG &= ~UCTXIFG;
     }
-    P7OUT |= BIT1;
-    __delay_cycles(0xF);
-    P7OUT &= ~BIT1;
-    atom_func_end(UART_SEND_STR_SZ);
+
+    // atom_func_end(UART_SEND_STR_SZ);
+    atom_func_end_linear(UART_SEND_STR_SZ, sz / 0x20);
 }
 
 int main(void) {
     uart_init();
 
     for (;;) {
-        // __bis_SR_register(LPM3_bits | GIE);  // Enter LPM3 with interrupts enabled
-        // ******* DMA module test ******
-        for (int i = 0; i < 4; i++) {
-            uart_send_str_sz((char*) input + 0x200 * i, 0x200);     // Send 512 bytes
+        // Sending a certain amount of data repeatedly
+        // for (int i = 0; i < 4; i++) {
+        //     uart_send_str_sz((char*) input + 0x200 * i, 0x200);     // Send 512 bytes
+        // }
+
+        // Sending a linearly increasing amount of data
+        for (int i = 1; i <= 8; i++) {
+            uart_send_str_sz((char*) input, i * 0x20);
         }
     }
 

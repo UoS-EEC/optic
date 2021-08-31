@@ -65,6 +65,10 @@
 // #define DISCONNECT_SUPPLY_PROFILING     // Disconnect supply when profiling
                                         // Remember to configure P1.5 for short-circuiting
                                         // .. both in HW and SW
+
+#define LINEAR_ADAPT_COEFFICIENT    4
+
+
 #define DEBUG_GPIO
 // #define DEBUG_UART
 

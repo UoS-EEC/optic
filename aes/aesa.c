@@ -229,8 +229,8 @@ void aes_128_dec(uint8_t* key, uint8_t* iv, uint8_t* ciphertext,
 // 256-bit encryption
 void aes_256_enc(uint8_t* key, uint8_t* iv, uint8_t* plaintext,
                  uint8_t* ciphertext, uint8_t num_blocks) {
-    atom_func_start(AES_256_ENC);
-    // atom_func_start_linear(AES_128_ENC, num_blocks);
+    // atom_func_start(AES_256_ENC);
+    atom_func_start_linear(AES_256_ENC, num_blocks);
 
     // Reset AES Module (clears internal state memory)
     AESACTL0 = AESSWRST;
@@ -286,8 +286,8 @@ void aes_256_enc(uint8_t* key, uint8_t* iv, uint8_t* plaintext,
     while (!(DMA0CTL & DMAIFG)) {}
     DMA0CTL &= ~DMAIFG;
 
-    atom_func_end(AES_256_ENC);
-    // atom_func_end_linear(AES_128_ENC, num_blocks);
+    // atom_func_end(AES_256_ENC);
+    atom_func_end_linear(AES_256_ENC, num_blocks);
 }
 
 // 256-bit decryption

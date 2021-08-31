@@ -185,7 +185,7 @@ int main(void) {
 
         // aes_128_enc(key, iv, input, output, 64);        // Encrypt 1KB data
         // aes_128_enc(key, iv, input, output, 128);       // Encrypt 2KB data
-        aes_128_enc(key, iv, input, output, 255);       // Encrypt ~4KB data
+        // aes_128_enc(key, iv, input, output, 255);       // Encrypt ~4KB data
 
         // aes_128_dec(key, iv, input, input, 64);         // Decrypt 1KB data
         // aes_128_dec(key, iv, output, output2, 128);     // Decrypt 2KB data
@@ -193,6 +193,11 @@ int main(void) {
 
         // aes_256_enc(key, iv, input, output, 192);       // Encrypt 3KB data
         // aes_256_dec(key, iv, output, output2, 255);     // Decrypt 2KB data
+
+        aes_256_enc(key, iv, input, output, 64);       // Encrypt 1KB data
+        aes_256_enc(key, iv, input, output, 128);       // Encrypt 2KB data
+        aes_256_enc(key, iv, input, output, 192);       // Encrypt 3KB data
+        aes_256_enc(key, iv, input, output, 255);       // Encrypt 4KB data
 
         // uart_send_str_sz((char*) input, 64);        // Print plaintext
         // uart_send_str_sz("\n\r", 2);                // Print newline

@@ -649,8 +649,8 @@ void atom_func_end(uint8_t func_id) {
     if (!(CECTL1 & CEOUT)) {     // If target end threshold is not met
         atom_state[func_id].adapt_threshold++;
         atom_state[func_id].v_exe_hist_index = 0;
-        TA0CTL &= ~MC;  // Stop Timer A0
     }
+    TA0CTL &= ~MC;  // Stop Timer A0
 
     if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {    // Don't profile if charging time is too short
         // Take a Vcc reading, get Delta V_exe
@@ -659,9 +659,6 @@ void atom_func_end(uint8_t func_id) {
 
         // Take a time reading, get T_exe
         timer_cnt2 = TA0R - timer_cnt1;  // T_exe
-
-        // Stop Timer A0
-        TA0CTL &= ~MC;
 
         // Calculate the actual voltage drop
 #ifdef FLOAT_POINT_ARITHMETIC
@@ -785,6 +782,7 @@ void atom_func_end(uint8_t func_id) {
 
 // Linear adaptation utility
 
+// The following parameters should be dedicated to each function later
 uint16_t PERSISTENT param_min = 0xFFFF;
 uint16_t PERSISTENT param_max = 0;
 uint16_t PERSISTENT y_min = 0xFFFF;
@@ -794,8 +792,11 @@ uint16_t PERSISTENT offset = UNIT_COMPE_ADC * 8;
 uint16_t PERSISTENT y_curr;
 
 void atom_func_start_linear(uint8_t func_id, uint16_t param) {
-    // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
-    // ..or continue directly if (Vcc > adapt_threshold)
+    // If the task failed before, reset the profiling
+    if (atom_state[func_id].check_fail) {
+        offset += UNIT_COMPE_ADC;
+    }
+
     if (param_max <= param_min) {
         y_curr = offset;
     } else {
@@ -808,16 +809,19 @@ void atom_func_start_linear(uint8_t func_id, uint16_t param) {
 
     // Take a Vcc reading
     adc_r1 = sample_vcc();
-    // Clear and start RTC
-    RTCCNT12 = 0;
-    RTCCTL13 &= ~(RTCHOLD);  // Start RTC
+    // Clear and start Timer A0
+    TA0CTL = TASSEL__ACLK | MC__CONTINUOUS | TACLR;
 
     P7OUT &= ~BIT0;     // Indicate overhead
     CEINT |= CEIIE;
 
+    // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
+    // ..or continue directly if (Vcc > adapt_threshold)
     // Sleep and wait for energy recharged
     storing_energy = 1;
-    set_CEREF1(y_curr / UNIT_COMPE_ADC + 1 + TARGET_END_THRESHOLD);
+    uint8_t temp = (uint8_t) (y_curr / UNIT_COMPE_ADC + 1 + TARGET_END_THRESHOLD);
+    if (temp > 31) temp = 31;
+    set_CEREF1(temp);
     COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
     set_CEREF1(TARGET_END_THRESHOLD);
     storing_energy = 0;
@@ -826,13 +830,14 @@ void atom_func_start_linear(uint8_t func_id, uint16_t param) {
     CEINT &= ~CEIIE;
     P7OUT |= BIT0;      // Indicate overhead
     // Take a time reading, get T_charge
-    timer_cnt1 = RTCCNT12;  // T_charge
+    timer_cnt1 = TA0R;  // T_charge
 
     if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {  // Don't profile if charging time is too short
         // Take a Vcc reading, get Delta V_charge
         adc_r2 = sample_vcc();
         d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
     }
+    atom_state[func_id].check_fail = 1;
     P7OUT &= ~BIT0;     // Indicate overhead
 
     P1OUT |= BIT0;  // Debug
@@ -843,8 +848,19 @@ void atom_func_end_linear(uint8_t func_id, uint8_t param) {
     // ...Atomic function ends
     P1OUT &= ~BIT0;
 
+    // Indicate completion
+    P7OUT |= BIT1;
+    __delay_cycles(0xF);
+    P7OUT &= ~BIT1;
+
     // *** Discharging cycle ends ***
     P7OUT |= BIT0;      // Indicate overhead
+
+    atom_state[func_id].check_fail = 0;     // Succefully complete
+    if (!(CECTL1 & CEOUT)) {     // If target end threshold is not met
+        offset += UNIT_COMPE_ADC;
+    }
+    TA0CTL &= ~MC;  // Stop Timer A0
 
     if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {    // Don't profile if charging time is too short
         // Take a Vcc reading, get Delta V_exe
@@ -852,10 +868,7 @@ void atom_func_end_linear(uint8_t func_id, uint8_t param) {
         d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
 
         // Take a time reading, get T_exe
-        timer_cnt2 = RTCCNT12 - timer_cnt1;  // T_exe
-
-        // Stop RTC
-        RTCCTL13 |= RTCHOLD;
+        timer_cnt2 = TA0R - timer_cnt1;  // T_exe
 
         // Calculate the actual voltage drop
 #ifdef FLOAT_POINT_ARITHMETIC
@@ -877,7 +890,8 @@ void atom_func_end_linear(uint8_t func_id, uint8_t param) {
                 y_max = v_exe;
             }
 
-            offset = offset - y_curr / 4 + v_exe / 4;
+            // offset = offset - y_curr / LINEAR_ADAPT_COEFFICIENT + v_exe / LINEAR_ADAPT_COEFFICIENT;
+            offset += (v_exe - y_curr) / LINEAR_ADAPT_COEFFICIENT;
 #ifdef DEBUG_UART
             // UART debug info
             char str_buffer[20];
