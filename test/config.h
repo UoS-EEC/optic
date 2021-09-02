@@ -17,11 +17,13 @@
 
 #define MAX_ADC_READING 4095
 #define MAX_COMPE_RTAP  32  // Max comparator E resistor tap setting
+#define UNIT_COMPE_ADC  128
 
-#define COMPE_DEFAULT_HI_THRESHOLD    0x0017
-#define COMPE_DEFAULT_LO_THRESHOLD    0x1300
-#define TARGET_END_THRESHOLD        19
-#define PROFILING_INIT_THRESHOLD    27
+#define COMPE_DEFAULT_HI_THRESHOLD    0x0011    // 17
+#define COMPE_DEFAULT_LO_THRESHOLD    0x1000    // 16
+#define TARGET_END_THRESHOLD        15
+#define PROFILING_INIT_THRESHOLD    26
+#define FIXED_PROFILING_THRESHOLD   23
     // CEREF_n : V threshold (Volt)
     //  0 : 0.1125
     //  1 : 0.2250
@@ -56,8 +58,18 @@
     // 30 : 3.4875
     // 31 : 3.6000
 
-#define V_EXE_HISTORY_SIZE      10
+#define MIN_PROFILING_TIMER_CNT     4
+#define V_EXE_HISTORY_SIZE          10
 
 // #define FLOAT_POINT_ARITHMETIC  // Comment to use integer method
+// #define DISCONNECT_SUPPLY_PROFILING     // Disconnect supply when profiling
+                                        // Remember to configure P1.5 for short-circuiting
+                                        // .. both in HW and SW
+
+#define LINEAR_ADAPT_COEFFICIENT    4
+
+
+#define DEBUG_GPIO
+// #define DEBUG_UART
 
 #endif  // TEST_CONFIG_H_

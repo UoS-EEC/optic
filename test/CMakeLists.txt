@@ -12,8 +12,8 @@ add_executable(
     ic.c
     ic.h
     config.h
-    uart.c
-    uart.h
+    # uart.c
+    # uart.h
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES SUFFIX ".elf")
