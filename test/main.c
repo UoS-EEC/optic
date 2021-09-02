@@ -19,11 +19,11 @@ void spi_UCA3_init() {
     // SPI - UCA3 init
     // 3-pin mode, CS_N active low
     UCA3CTLW0 |= UCSWRST;
-    UCA3CTLW0 = UCMST   |       // Master mode
-                UCSYNC  |       // Synchronous mode
-                UCMSB   |       // MSB first
-                UCCKPH  |       // Capture on the first CLK edge
-                UCSSEL_2;       // SMCLK in master mode
+    UCA3CTLW0 |= UCMST   |      // Master mode
+                 UCSYNC  |      // Synchronous mode
+                 UCMSB   |      // MSB first
+                 UCCKPH  |      // Capture on the first CLK edge
+                 UCSSEL_2;      // SMCLK in master mode
     // f_BitClock = f_BRClock / prescalerValue = 8MHz / 8 = 1MHz
     UCA3BR1 = 0x00;
     UCA3BR0 = 0x08;

@@ -2,6 +2,8 @@
 # All rights reserved.
 # SPDX-License-Identifier: MIT
 
+#!/usr/local/bin/python3
+# %%
 
 # print("CEREF_n : v threshold")
 # for n in range(32):
