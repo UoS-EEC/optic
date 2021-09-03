@@ -27,26 +27,23 @@ for n in range(129):
 #     print("%4d" % n, " : ", "%6f" % adc_arr[n])
 
 
-# step = 0.025    # 25mV step
-# n_step = (3.6 - 1.8) / step
-
-# for i in range(n_step + 1):
-
-
 # Settings
 adc_step = 32                   # Set the step of ADC readings
 target_end_voltage = 1.8        # Target end voltage
 
-print("Step of ADC reading: %d" % adc_step)
+
+
+print("Settings:")
+print("Step of ADC reading: %d" % adc_step, "(%.3fmV per step)" % (adc_step / 4095 * 3.6 * 1000))
 print("Target end voltage: %.2f V" % target_end_voltage)
 print("")
+
 v_step = adc_step / 4095 * 3.6
 n_step = 0
-
 thresholds = []
 v_th = n_step * v_step + target_end_voltage
 i = 128
-# Our goal is to generate a look-up table: threshold[profiling_result / 20]
+# The goal is to generate a look-up table: threshold[profiling_result / adc_step]
 while v_th < 3.6:
     while i >= 0 and v_arr[i] < v_th:
         i -= 1
@@ -54,17 +51,18 @@ while v_th < 3.6:
     n_step += 1
     v_th = n_step * v_step + target_end_voltage
 
-print("index    adc_profiling_result    v_droop    n_pot    v_th")
+print("index  profiling_result  v_droop  n_pot   v_th")
 i = 0
 for i in range(len(thresholds)):
-    print(i, i * adc_step, i * v_step, thresholds[i], v_arr[thresholds[i]])
+    print("%5d  %16d  %7.3f  %5d  %.3f" % (i, i * adc_step,  i * v_step, thresholds[i], v_arr[thresholds[i]]))
     i += 1
 
-print("\nCopy the array below")
-print("adc_to_threshold[%d] = {" % len(thresholds))
-i = 0
-for i in range(len(thresholds)):
-    print("%d," % thresholds[i])
+print("\nTarget end threshold: %d" % thresholds[0])
+print("Lookup table:")
+print("adc_to_threshold[%d] = {" % (len(thresholds) - 1))
+
+for i in range(1, len(thresholds)):
+    print("    %3d,  // %3d, %.3fV" % (thresholds[i], i - 1, v_arr[thresholds[i]]))
     i += 1
 print("};")
 # %%
