@@ -60,7 +60,7 @@ void uart_init(void) {
 
 void uart_send_str_sz(char* str, unsigned sz) {
     // atom_func_start(UART_SEND_STR_SZ);
-    atom_func_start_linear(UART_SEND_STR_SZ, sz / 0x20);
+    // atom_func_start_linear(UART_SEND_STR_SZ, sz / 0x20);
 
     UCA0IFG &= ~UCTXIFG;
     while (sz--) {
@@ -70,7 +70,7 @@ void uart_send_str_sz(char* str, unsigned sz) {
     }
 
     // atom_func_end(UART_SEND_STR_SZ);
-    atom_func_end_linear(UART_SEND_STR_SZ, sz / 0x20);
+    // atom_func_end_linear(UART_SEND_STR_SZ, sz / 0x20);
 }
 
 int main(void) {

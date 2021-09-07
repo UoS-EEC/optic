@@ -27,7 +27,7 @@ typedef struct AtomFuncState_s {
     // ..so read as '1' at the entry means the function failed before
     uint8_t check_fail;
 
-    // Adaptive threhold, and profiling variables
+    // Adaptive threshold, and profiling variables
     uint8_t  adapt_threshold;   // Init: PROFILING_INIT_THRESHOLD
     uint16_t v_exe_history[V_EXE_HISTORY_SIZE];
     uint8_t  v_exe_hist_index;  // Init: 0

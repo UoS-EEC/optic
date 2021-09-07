@@ -147,37 +147,37 @@ static void gpio_init(void) {
     PM5CTL0 &= ~LOCKLPM5;
 }
 
-static void adc12_init(void) {
-    // Configure ADC12
+// static void adc12_init(void) {
+//     // Configure ADC12
 
-    // 2.0 V reference selected, comment this to use 1.2V
-    // REFCTL0 |= REFVSEL_1;
+//     // 2.0 V reference selected, comment this to use 1.2V
+//     // REFCTL0 |= REFVSEL_1;
 
-    ADC12CTL0 = ADC12SHT0_2 |   // 16 cycles sample and hold time
-                ADC12ON;        // ADC12 on
-    ADC12CTL1 = ADC12PDIV_1 |   // Predivide by 4, from ~4.8MHz MODOSC
-                ADC12SHP;       // SAMPCON is from the sampling timer
-    ADC12CTL2 = ADC12RES_2 |    // Default 12-bit conversion results, 14cycles conversion time
-                ADC12PWRMD_1;   // Low-power mode
+//     ADC12CTL0 = ADC12SHT0_2 |   // 16 cycles sample and hold time
+//                 ADC12ON;        // ADC12 on
+//     ADC12CTL1 = ADC12PDIV_1 |   // Predivide by 4, from ~4.8MHz MODOSC
+//                 ADC12SHP;       // SAMPCON is from the sampling timer
+//     ADC12CTL2 = ADC12RES_2 |    // Default 12-bit conversion results, 14cycles conversion time
+//                 ADC12PWRMD_1;   // Low-power mode
 
-    // Use battery monitor (1/2 AVcc)
-    // ADC12CTL3 = ADC12BATMAP;  // 1/2AVcc channel selected for ADC ch A31
-    // ADC12MCTL0 = ADC12INCH_31 |
-    //              ADC12VRSEL_1;  // VR+ = VREF buffered, VR- = Vss
+//     // Use battery monitor (1/2 AVcc)
+//     // ADC12CTL3 = ADC12BATMAP;  // 1/2AVcc channel selected for ADC ch A31
+//     // ADC12MCTL0 = ADC12INCH_31 |
+//     //              ADC12VRSEL_1;  // VR+ = VREF buffered, VR- = Vss
 
-    // Use P3.0
-    // P3SEL1 |= BIT0;
-    // P3SEL0 |= BIT0;
-    // ADC12MCTL0 = ADC12INCH_12|      // Select ch A12 at P3.0
-    //              ADC12VRSEL_1;      // VR+ = VREF buffered, VR- = Vss
-    // Use P3.1
-    P3SEL1 |= BIT1;
-    P3SEL0 |= BIT1;
-    ADC12MCTL0 = ADC12INCH_13|      // Select ch A13 at P3.1
-                 ADC12VRSEL_1;      // VR+ = VREF buffered, VR- = Vss
-    while (!(REFCTL0 & REFGENRDY)) {}   // Wait for reference generator to settle
-    // ADC12IER0 = ADC12IE0;  // Enable ADC conv complete interrupt
-}
+//     // Use P3.0
+//     // P3SEL1 |= BIT0;
+//     // P3SEL0 |= BIT0;
+//     // ADC12MCTL0 = ADC12INCH_12|      // Select ch A12 at P3.0
+//     //              ADC12VRSEL_1;      // VR+ = VREF buffered, VR- = Vss
+//     // Use P3.1
+//     P3SEL1 |= BIT1;
+//     P3SEL0 |= BIT1;
+//     ADC12MCTL0 = ADC12INCH_13|      // Select ch A13 at P3.1
+//                  ADC12VRSEL_1;      // VR+ = VREF buffered, VR- = Vss
+//     while (!(REFCTL0 & REFGENRDY)) {}   // Wait for reference generator to settle
+//     // ADC12IER0 = ADC12IE0;  // Enable ADC conv complete interrupt
+// }
 
 // ADC12 interrupt service routine
 // void __attribute__((interrupt(ADC12_B_VECTOR))) ADC12_ISR(void) {
@@ -192,15 +192,15 @@ static void adc12_init(void) {
 // }
 
 // Take ~60us
-static uint16_t sample_vcc(void) {
-    P8OUT |= BIT0;
-    ADC12CTL0 |= ADC12ENC | ADC12SC;  // Start sampling & conversion
-    // __bis_SR_register(LPM0_bits | GIE);
-    while (!(ADC12IFGR0 & BIT0)) {}
-    adc_reading = ADC12MEM0;
-    P8OUT &= ~BIT0;
-    return adc_reading;
-}
+// static uint16_t sample_vcc(void) {
+//     P8OUT |= BIT0;
+//     ADC12CTL0 |= ADC12ENC | ADC12SC;  // Start sampling & conversion
+//     // __bis_SR_register(LPM0_bits | GIE);
+//     while (!(ADC12IFGR0 & BIT0)) {}
+//     adc_reading = ADC12MEM0;
+//     P8OUT &= ~BIT0;
+//     return adc_reading;
+// }
 
 #ifdef DEBUG_UART
 void uart_init(void) {
