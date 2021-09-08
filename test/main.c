@@ -3,86 +3,122 @@
 // SPDX-License-Identifier: MIT
 
 #include <msp430fr5994.h>
-#include "test/ic.h"
+#include "opta/ic.h"
 
-void spi_UCA3_init() {
-    // P6.3 CS_N
-    P6SEL1 &= ~BIT3;    // GPIO function
-    P6SEL0 &= ~BIT3;    // GPIO function
-    P6DIR |= BIT3;      // Output
-    P6OUT |= BIT3;      // Initial output high (inactive)
+#define UART
 
-    // P6.0 MOSI, P6.1 MISO, P6.2 SCLK
-    P6SEL1 &= ~(BIT0 | BIT1 | BIT2);    // UCA3 function
-    P6SEL0 |= BIT0 | BIT1 | BIT2;       // UCA3 function
+#ifdef UART
+void uart_init(void) {
+    P2DIR &= ~(BIT0 | BIT1);
+    // P2.0 UCA0TXD
+    // P2.1 UCA0RXD
+    P2SEL0 &= ~(BIT0 | BIT1);
+    P2SEL1 |=  BIT0 | BIT1;
 
-    // SPI - UCA3 init
-    // 3-pin mode, CS_N active low
-    UCA3CTLW0 = UCSWRST;
-    UCA3CTLW0 |= UCMST   |      // Master mode
-                 UCSYNC  |      // Synchronous mode
-                 UCMSB   |      // MSB first
-                 UCCKPH;        // Capture on the first CLK edge
-    UCA3CTLW0 |= UCSSEL_2;      // SMCLK in master mode
-    // f_BitClock = f_BRClock / prescalerValue = 8MHz / 8 = 1MHz
-    UCA3BR1 = 0x00;
-    UCA3BR0 = 0x08;
-    UCA3CTLW0 &= ~UCSWRST;
+    /* 115200 bps on 8MHz SMCLK */
+    UCA0CTL1 |= UCSWRST;                        // Reset State
+    UCA0CTL1 |= UCSSEL__SMCLK;                  // SMCLK
+
+    // 115200 baud rate
+    // 8M / 115200 = 69.444444...
+    // 69.444 = 16 * 4 + 5 + 0.444444....
+    UCA0BR0 = 4;
+    UCA0BR1 = 0;
+    UCA0MCTLW = UCOS16 | UCBRF0 | UCBRF2 | 0x5500;  // UCBRF = 5, UCBRS = 0x55
+
+    UCA0CTL1 &= ~UCSWRST;
 }
 
-void set_threshold(uint8_t threshold) {
-    P6OUT &= ~BIT3;             // CS_N low, enable
+void uart_send_str(char* str) {
+    UCA0IFG &= ~UCTXIFG;
+    while (*str != '\0') {
+        UCA0TXBUF = *str++;
+        while (!(UCA0IFG & UCTXIFG)) {}
+        UCA0IFG &= ~UCTXIFG;
+    }
+}
 
-    UCA3IFG &= ~UCRXIFG;
-    UCA3TXBUF = 0x00;           // High byte
-    while (!(UCA3IFG & UCRXIFG)) {}
+/* unsigned int to string, decimal format */
+char* uitoa_10(uint16_t num, char* const str) {
+    // calculate decimal
+    char* ptr = str;
+    uint16_t modulo;
+    do {
+        modulo = num % 10;
+        num /= 10;
+        *ptr++ = '0' + modulo;
+    } while (num);
 
-    UCA3IFG &= ~UCRXIFG;
-    UCA3TXBUF = threshold;      // Low byte
-    while (!(UCA3IFG & UCRXIFG)) {}
+    // reverse string
+    *ptr-- = '\0';
+    char* ptr1 = str;
+    char tmp_char;
+    while (ptr1 < ptr) {
+        tmp_char = *ptr;
+        *ptr--= *ptr1;
+        *ptr1++ = tmp_char;
+    }
 
-    P6OUT |= BIT3;              // CS_N high, disable
+    return str;
+}
+#endif
+
+
+uint16_t adc;
+
+uint16_t sample_vcc(void) {
+    P8OUT |= BIT0;
+    ADC12CTL0 |= ADC12ENC | ADC12SC;  // Start sampling & conversion
+    while (!(ADC12IFGR0 & BIT0)) {}
+    adc = ADC12MEM0;
+    P8OUT &= ~BIT0;
+    return adc;
+}
+
+void dummy() {
+    atom_func_start(0);
 }
 
 int main(void) {
     // Configure P5.5 button S2
-    P5OUT = BIT5;
-    P5REN = BIT5;
-    P5DIR &= ~BIT5;
-    P5IES &= ~BIT5;
-    P5IFG = 0;
-    P5IE = BIT5;
+    // P5OUT = BIT5;
+    // P5REN = BIT5;
+    // P5DIR &= ~BIT5;
+    // P5IES &= ~BIT5;
+    // P5IFG = 0;
+    // P5IE = BIT5;
+    uart_init();
 
-    spi_UCA3_init();
-
+    uart_send_str("\n\r");
+    uart_send_str("\n\r");
+    int i = 10;
     for (;;) {
-        // __delay_cycles(8000000);
-        __bis_SR_register(LPM4_bits | GIE);
-        set_threshold(0);
-        // __delay_cycles(8000000);
-        __bis_SR_register(LPM4_bits | GIE);
-        set_threshold(64);
-        // __delay_cycles(8000000);
-        __bis_SR_register(LPM4_bits | GIE);
-        set_threshold(128);
+        char buf[16];
+        uart_send_str(uitoa_10(sample_vcc(), buf));
+        uart_send_str(" ");
+        if (--i == 0) {
+            uart_send_str("\n\r");
+            i = 10;
+        }
+        __delay_cycles(50000);
     }
 
     return 0;
 }
 
-void __attribute__((interrupt(PORT5_VECTOR))) P5_ISR(void) {
-    switch (__even_in_range(P5IV, P5IV__P5IFG7)) {
-        case P5IV__NONE:    break;          // Vector  0:  No interrupt
-        case P5IV__P5IFG0:  break;          // Vector  2:  P1.0 interrupt flag
-        case P5IV__P5IFG1:  break;          // Vector  4:  P1.1 interrupt flag
-        case P5IV__P5IFG2:  break;          // Vector  6:  P1.2 interrupt flag
-        case P5IV__P5IFG3:  break;          // Vector  8:  P1.3 interrupt flag
-        case P5IV__P5IFG4:  break;          // Vector  10:  P1.4 interrupt flag
-        case P5IV__P5IFG5:                  // Vector  12:  P1.5 interrupt flag
-            __bic_SR_register_on_exit(LPM4_bits);   // Exit LPM4
-            break;
-        case P5IV__P5IFG6:  break;          // Vector  14:  P1.6 interrupt flag
-        case P5IV__P5IFG7:  break;          // Vector  16:  P1.7 interrupt flag
-        default: break;
-    }
-}
+// void __attribute__((interrupt(PORT5_VECTOR))) P5_ISR(void) {
+//     switch (__even_in_range(P5IV, P5IV__P5IFG7)) {
+//         case P5IV__NONE:    break;          // Vector  0:  No interrupt
+//         case P5IV__P5IFG0:  break;          // Vector  2:  P1.0 interrupt flag
+//         case P5IV__P5IFG1:  break;          // Vector  4:  P1.1 interrupt flag
+//         case P5IV__P5IFG2:  break;          // Vector  6:  P1.2 interrupt flag
+//         case P5IV__P5IFG3:  break;          // Vector  8:  P1.3 interrupt flag
+//         case P5IV__P5IFG4:  break;          // Vector  10:  P1.4 interrupt flag
+//         case P5IV__P5IFG5:                  // Vector  12:  P1.5 interrupt flag
+//             __bic_SR_register_on_exit(LPM4_bits);   // Exit LPM4
+//             break;
+//         case P5IV__P5IFG6:  break;          // Vector  14:  P1.6 interrupt flag
+//         case P5IV__P5IFG7:  break;          // Vector  16:  P1.7 interrupt flag
+//         default: break;
+//     }
+// }

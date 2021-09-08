@@ -208,7 +208,6 @@ int main(void) {
         // uart_send_str_sz((char*) output2, 64);      // Print deciphertext
         // uart_send_str_sz("\n\r", 2);                // Print newline
 
-
         __delay_cycles(1000000);     // Dummy delay
 
         // ******* Completion *******

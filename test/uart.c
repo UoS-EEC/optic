@@ -10,7 +10,7 @@ void uart_init(void) {
     // P2.0 UCA0TXD
     // P2.1 UCA0RXD
     P2SEL0 &= ~(BIT0 | BIT1);
-    P2SEL1 |=   BIT0 | BIT1;
+    P2SEL1 |=  BIT0 | BIT1;
 
     /* 115200 bps on 8MHz SMCLK */
     UCA0CTL1 |= UCSWRST;                        // Reset State

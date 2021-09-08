@@ -277,19 +277,18 @@ static void adc12_init(void) {
 }
 
 // Take ~60us
-// static uint16_t sample_vcc(void) {
-// #ifdef DEBUG_GPIO
-//     P8OUT |= BIT0;
-// #endif
-//     ADC12CTL0 |= ADC12ENC | ADC12SC;  // Start sampling & conversion
-//     // __bis_SR_register(LPM0_bits | GIE);
-//     while (!(ADC12IFGR0 & BIT0)) {}
-//     adc_reading = ADC12MEM0;
-// #ifdef DEBUG_GPIO
-//     P8OUT &= ~BIT0;
-// #endif
-//     return adc_reading;
-// }
+static uint16_t sample_vcc(void) {
+#ifdef DEBUG_GPIO
+    P8OUT |= BIT0;
+#endif
+    ADC12CTL0 |= ADC12ENC | ADC12SC;  // Start sampling & conversion
+    while (!(ADC12IFGR0 & BIT0)) {}
+    adc_reading = ADC12MEM0;
+#ifdef DEBUG_GPIO
+    P8OUT &= ~BIT0;
+#endif
+    return adc_reading;
+}
 
 // Initialise the external comparator
 static void ext_comp_init() {
@@ -329,7 +328,7 @@ static void ext_comp_init() {
 }
 
 // Set the threshold of the external comparator
-void set_threshold(uint8_t threshold) {
+static void set_threshold(uint8_t threshold) {
     P6OUT &= ~BIT3;             // CS_N low, enable
 
     UCA3IFG &= ~UCRXIFG;
@@ -440,9 +439,9 @@ iclib_boot() {
     // ..to avoid being stuck in boot & fail
 
     // Set up internal Vref
-    // while (REFCTL0 & REFGENBUSY) {}
-    // REFCTL0 |= REFGENOT;
-    // REFCTL0 |= REFVSEL_0 | REFON;       // Select internal Vref (VR+) = 1.2V
+    while (REFCTL0 & REFGENBUSY) {}
+    REFCTL0 |= REFGENOT;
+    REFCTL0 |= REFVSEL_0 | REFON;       // Select internal Vref (VR+) = 1.2V
                                         // Internal Reference ON
     gpio_init();
     clock_init();
