@@ -64,15 +64,14 @@ char* uitoa_10(uint16_t num, char* const str) {
 #endif
 
 
-uint16_t adc;
+// uint16_t adc;
 
 uint16_t sample_vcc(void) {
     P8OUT |= BIT0;
     ADC12CTL0 |= ADC12ENC | ADC12SC;  // Start sampling & conversion
     while (!(ADC12IFGR0 & BIT0)) {}
-    adc = ADC12MEM0;
     P8OUT &= ~BIT0;
-    return adc;
+    return ADC12MEM0;
 }
 
 void dummy() {

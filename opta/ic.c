@@ -49,7 +49,6 @@ uint8_t PERSISTENT suspending;  // From backup: 1, from restore: 0
 uint8_t storing_energy;         // Comparator E control signal
 
 // Profiling parameters
-volatile uint16_t adc_reading;  // Used by ADC ISR
 uint16_t adc_r1;
 uint16_t adc_r2;
 uint32_t d_v_charge;
@@ -252,12 +251,10 @@ static void gpio_init(void) {
 
 static void adc12_init(void) {
     // Set up internal Vref
-    while (REFCTL0 & REFGENBUSY) {}
-    REFCTL0 |= REFGENOT;
-    // REFCTL0 |= REFVSEL_0 | REFON;       // Select internal Vref (VR+) = 1.2V
-                                        // Internal Reference ON
-    // Configure ADC12
+    // while (REFCTL0 & REFGENBUSY) {}
+    // REFCTL0 |= REFVSEL_0;       // Select internal Vref (VR+) = 1.2V (default)
 
+    // Configure ADC12
     ADC12CTL0 = ADC12SHT0_2 |   // 16 cycles sample and hold time
                 ADC12ON;        // ADC12 on
     ADC12CTL1 = ADC12PDIV_1 |   // Predivide by 4, from ~4.8MHz MODOSC
@@ -277,22 +274,19 @@ static void adc12_init(void) {
     P3SEL0 |= BIT1;
     ADC12MCTL0 = ADC12INCH_13|          // Select ch A13 at P3.1
                  ADC12VRSEL_1;          // VR+ = VREF buffered, VR- = Vss
-
-    // while (!(REFCTL0 & REFGENRDY)) {}   // Wait for reference generator to settle
 }
 
-// Take ~60us
+// Take ~82us
 static uint16_t sample_vcc(void) {
 #ifdef DEBUG_GPIO
     P8OUT |= BIT0;
 #endif
-    ADC12CTL0 |= ADC12ENC | ADC12SC;  // Start sampling & conversion
+    ADC12CTL0 |= ADC12ENC | ADC12SC;    // Start sampling & conversion
     while (!(ADC12IFGR0 & BIT0)) {}
-    adc_reading = ADC12MEM0;
 #ifdef DEBUG_GPIO
     P8OUT &= ~BIT0;
 #endif
-    return adc_reading;
+    return ADC12MEM0;
 }
 
 // Initialise the external comparator
@@ -305,7 +299,7 @@ static void ext_comp_init() {
     P6OUT |= BIT3;      // Initial output high (inactive)
 
     // P6.0 MOSI, P6.1 MISO, P6.2 SCLK
-    P6SEL1 &= ~(BIT0 | BIT1 | BIT2);    // UCA3 function
+    // P6SEL1 &= ~(BIT0 | BIT1 | BIT2);    // UCA3 function
     P6SEL0 |= BIT0 | BIT1 | BIT2;       // UCA3 function
 
     // SPI - UCA3 init
