@@ -251,6 +251,11 @@ static void gpio_init(void) {
 }
 
 static void adc12_init(void) {
+    // Set up internal Vref
+    while (REFCTL0 & REFGENBUSY) {}
+    REFCTL0 |= REFGENOT;
+    // REFCTL0 |= REFVSEL_0 | REFON;       // Select internal Vref (VR+) = 1.2V
+                                        // Internal Reference ON
     // Configure ADC12
 
     ADC12CTL0 = ADC12SHT0_2 |   // 16 cycles sample and hold time
@@ -435,14 +440,6 @@ iclib_boot() {
     __set_SP_register(&__bootstackend);  // Boot stack
     __bic_SR_register(GIE);              // Disable interrupts during startup
 
-    // Minimized initialization stack for wakeup
-    // ..to avoid being stuck in boot & fail
-
-    // Set up internal Vref
-    while (REFCTL0 & REFGENBUSY) {}
-    REFCTL0 |= REFGENOT;
-    REFCTL0 |= REFVSEL_0 | REFON;       // Select internal Vref (VR+) = 1.2V
-                                        // Internal Reference ON
     gpio_init();
     clock_init();
     ext_comp_init();
