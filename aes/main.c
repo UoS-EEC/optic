@@ -68,69 +68,69 @@ unsigned char iv[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 //     "nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. "
 //     "Donec pede justo";
 
-// unsigned char __attribute__((section(".persistent"))) input[4096] =
-//     "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo "
-//     "ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis "
-//     "dis parturient montes, nascetur ridiculus mus. Donec quam felis, "
-//     "ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa "
-//     "quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, "
-//     "arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. "
-//     "Nullam dictum felis eu pede mollis pretium. Integer tincidunt. Cras "
-//     "dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. "
-//     "Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. "
-//     "Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. "
-//     "Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean "
-//     "imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper "
-//     "ultricies nisi. Nam eget dui. Lorem ipsum dolor sit amet, consectetuer "
-//     "adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum "
-//     "sociis natoque penatibus et magnis dis parturient montes, nascetur "
-//     "ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium "
-//     "quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla "
-//     "vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, "
-//     "imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis "
-//     "pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. "
-//     "Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, "
-//     "consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, "
-//     "viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius "
-//     "laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel "
-//     "augue. Curabitur ullamcorper ultricies nisi. Nam eget dui. Lorem ipsum "
-//     "dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget "
-//     "dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis "
-//     "parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies "
-//     "nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. "
-//     "Donec pede justo"
-//     "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo "
-//     "ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis "
-//     "dis parturient montes, nascetur ridiculus mus. Donec quam felis, "
-//     "ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa "
-//     "quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, "
-//     "arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. "
-//     "Nullam dictum felis eu pede mollis pretium. Integer tincidunt. Cras "
-//     "dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. "
-//     "Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. "
-//     "Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. "
-//     "Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean "
-//     "imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper "
-//     "ultricies nisi. Nam eget dui. Lorem ipsum dolor sit amet, consectetuer "
-//     "adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum "
-//     "sociis natoque penatibus et magnis dis parturient montes, nascetur "
-//     "ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium "
-//     "quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla "
-//     "vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, "
-//     "imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis "
-//     "pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. "
-//     "Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, "
-//     "consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, "
-//     "viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius "
-//     "laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel "
-//     "augue. Curabitur ullamcorper ultricies nisi. Nam eget dui. Lorem ipsum "
-//     "dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget "
-//     "dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis "
-//     "parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies "
-//     "nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. "
-//     "Donec pede justo";
+unsigned char __attribute__((section(".persistent"))) input[4096] =
+    "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo "
+    "ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis "
+    "dis parturient montes, nascetur ridiculus mus. Donec quam felis, "
+    "ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa "
+    "quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, "
+    "arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. "
+    "Nullam dictum felis eu pede mollis pretium. Integer tincidunt. Cras "
+    "dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. "
+    "Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. "
+    "Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. "
+    "Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean "
+    "imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper "
+    "ultricies nisi. Nam eget dui. Lorem ipsum dolor sit amet, consectetuer "
+    "adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum "
+    "sociis natoque penatibus et magnis dis parturient montes, nascetur "
+    "ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium "
+    "quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla "
+    "vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, "
+    "imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis "
+    "pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. "
+    "Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, "
+    "consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, "
+    "viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius "
+    "laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel "
+    "augue. Curabitur ullamcorper ultricies nisi. Nam eget dui. Lorem ipsum "
+    "dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget "
+    "dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis "
+    "parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies "
+    "nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. "
+    "Donec pede justo"
+    "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo "
+    "ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis "
+    "dis parturient montes, nascetur ridiculus mus. Donec quam felis, "
+    "ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa "
+    "quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, "
+    "arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. "
+    "Nullam dictum felis eu pede mollis pretium. Integer tincidunt. Cras "
+    "dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. "
+    "Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. "
+    "Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. "
+    "Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean "
+    "imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper "
+    "ultricies nisi. Nam eget dui. Lorem ipsum dolor sit amet, consectetuer "
+    "adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum "
+    "sociis natoque penatibus et magnis dis parturient montes, nascetur "
+    "ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium "
+    "quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla "
+    "vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, "
+    "imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis "
+    "pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. "
+    "Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, "
+    "consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, "
+    "viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius "
+    "laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel "
+    "augue. Curabitur ullamcorper ultricies nisi. Nam eget dui. Lorem ipsum "
+    "dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget "
+    "dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis "
+    "parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies "
+    "nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. "
+    "Donec pede justo";
 
-// unsigned char __attribute__((section(".persistent"))) output[4096];
+unsigned char __attribute__((section(".persistent"))) output[4096];
 // unsigned char __attribute__((section(".persistent"))) output2[4096];
 
 // void dummy_function(uint16_t cnt) {
@@ -185,7 +185,7 @@ int main(void) {
 
         // aes_128_enc(key, iv, input, output, 64);        // Encrypt 1KB data
         // aes_128_enc(key, iv, input, output, 128);       // Encrypt 2KB data
-        // aes_128_enc(key, iv, input, output, 255);       // Encrypt ~4KB data
+        aes_128_enc(key, iv, input, output, 255);       // Encrypt ~4KB data
 
         // aes_128_dec(key, iv, input, input, 64);         // Decrypt 1KB data
         // aes_128_dec(key, iv, output, output2, 128);     // Decrypt 2KB data
@@ -208,13 +208,12 @@ int main(void) {
         // uart_send_str_sz((char*) output2, 64);      // Print deciphertext
         // uart_send_str_sz("\n\r", 2);                // Print newline
 
-        __delay_cycles(1000000);     // Dummy delay
+        // __delay_cycles(1000000);     // Dummy delay
 
         // ******* Completion *******
         // P1OUT |= BIT0;
         // __delay_cycles(0xFF);
         // P1OUT &= ~BIT0;
-        P1OUT ^= BIT0;
 
         // __bis_SR_register(LPM3_bits | GIE);
     }

@@ -9,9 +9,17 @@
 
 n_arr = []
 v_arr = []
+
+# Setting
+v_ref_typ = 0.4             # 400mV typical reference, rising edge
+v_ref_hys = 0.0065          # 6.5mV hysteresis, take a mean for correction
+v_ref_offset = -0.003       # Offset (error), based on actual threshold
+v_ref = v_ref_typ - v_ref_hys / 2 + v_ref_offset
+
+
 # print("Threshold : V_th")
 for n in range(129):
-    v = (56 + 6.8 + 10) / (n / 128 * 10 + 6.8) * 0.4
+    v = (56 + 6.8 + 10) / (n / 128 * 10 + 6.8) * v_ref
     # print("%4d" % n, " : ", "%6f" % v)
     n_arr.append(n)
     v_arr.append(v)
