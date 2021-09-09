@@ -7,7 +7,6 @@
 #include "opta/config.h"
 
 
-#define COMPARATOR_DELAY    __delay_cycles(180)
 #define TRUE    1
 #define FALSE   0
 
@@ -559,24 +558,23 @@ void atom_func_start(uint8_t func_id) {
     atom_state[func_id].check_fail = TRUE;
 #ifdef DEBUG_GPIO
     P7OUT &= ~BIT0;     // Indicate overhead
-#endif
-
-#ifdef DEBUG_GPIO
     P1OUT |= BIT0;      // Debug
 #endif
     // Run the atomic function...
+    P1OUT |= BIT5;              // Disconnect supply, only valid when P1.5 is connected
 }
 
 void atom_func_end(uint8_t func_id) {
+    P1OUT &= ~BIT5;             // Reconnect supply, only valid when P1.5 is connected
     // ... Atomic function ends
 #ifdef DEBUG_GPIO
     P1OUT &= ~BIT0;
 #endif
 
     // Indicate completion
-    // P7OUT |= BIT1;
-    // __delay_cycles(0xF);
-    // P7OUT &= ~BIT1;
+    P7OUT |= BIT1;
+    __delay_cycles(0xF);
+    P7OUT &= ~BIT1;
 
     // *** Discharging cycle ends ***
 #ifdef DEBUG_GPIO
@@ -650,26 +648,32 @@ void atom_func_end(uint8_t func_id) {
     P3IE |= BIT0;           // Enable comp interrupt
 }
 
-#elif   DISCONNECT_SUPPLY_PROFILING
+#elif   defined(DISCONNECT_SUPPLY_PROFILING)
 // Disconnect supply profiling
 
 void atom_func_start(uint8_t func_id) {
-        // *** Charging cycle starts ***
-
+    P3IE &= ~BIT0;          // Disable comp interrupt
+    // *** Charging cycle starts ***/
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
-    // Sleep and wait for energy recharged
-    // storing_energy = 1;
-    // // set_CEREF1(atom_state[func_id].adapt_threshold);    // Adaptive threshold
-    // set_CEREF1(FIXED_PROFILING_THRESHOLD);              // Fixed profiling threshold
-    // COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
-    // set_CEREF1(TARGET_END_THRESHOLD);
-    // storing_energy = 0;
+    set_threshold(DEFAULT_HI_THRESHOLD);
+    COMPARATOR_DELAY;
+    if (P3IN & BIT0) {          // Enough budget
+        set_threshold(DEFAULT_LO_THRESHOLD);
+    } else {                    // Not enough
+        storing_energy = TRUE;
+        P3IE |= BIT0;           // Enable comp interrupt
+        COMPARATOR_DELAY;
+        // Should sleep here...
+        // ... Wake from the ISR when adapt_threshold is hit
+
+        P3IE &= ~BIT0;          // Disable comp interrupt
+        storing_energy = FALSE;
+    }
 
     // *** Charging cycle ends, discharging cycle starts ***
-    // Disconnect supply
     // CEINT &= ~CEIIE;
-    P1OUT |= BIT5;
+    P1OUT |= BIT5;      // Disconnect supply
     // Take a Vcc reading, get Delta V_charge
     // adc_r2 = sample_vcc();
 
@@ -687,8 +691,7 @@ void atom_func_end(uint8_t func_id) {
     P7OUT &= ~BIT1;
 
     // *** Discharging cycle ends ***
-    // Reconnect supply
-    P1OUT &= ~BIT5;
+    P1OUT &= ~BIT5;     // Reconnect supply
     // Take a Vcc reading, get Delta V_exe
     // adc_r1 = sample_vcc();
     // d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
@@ -708,7 +711,7 @@ void atom_func_end(uint8_t func_id) {
     uart_send_str("\n\r");
     // P1OUT &= ~BIT0;     // Debug
 #endif
-    // CEINT |= CEIIE;
+    P3IE |= BIT0;           // Enable comp interrupt
 }
 
 #else

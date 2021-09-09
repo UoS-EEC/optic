@@ -40,7 +40,6 @@ adc_step = 32                   # Set the step of ADC readings
 target_end_voltage = 1.8        # Target end voltage
 
 
-
 print("Settings:")
 print("Step of ADC reading: %d" % adc_step, "(%.3fmV per step)" % (adc_step / 4095 * 3.6 * 1000))
 print("Target end voltage: %.2f V" % target_end_voltage)
