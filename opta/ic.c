@@ -498,7 +498,7 @@ iclib_boot() {
     main();
 }
 
-#ifdef  CONNECT_SUPPLY_PROFILING
+#ifdef  OPTA
 // Connect supply profiling
 
 void atom_func_start(uint8_t func_id) {
@@ -561,11 +561,15 @@ void atom_func_start(uint8_t func_id) {
     P1OUT |= BIT0;      // Debug
 #endif
     // Run the atomic function...
+#ifdef DISCONNECT_SUPPLY_PROFILING
     P1OUT |= BIT5;              // Disconnect supply, only valid when P1.5 is connected
+#endif
 }
 
 void atom_func_end(uint8_t func_id) {
+#ifdef DISCONNECT_SUPPLY_PROFILING
     P1OUT &= ~BIT5;             // Reconnect supply, only valid when P1.5 is connected
+#endif
     // ... Atomic function ends
 #ifdef DEBUG_GPIO
     P1OUT &= ~BIT0;
@@ -648,7 +652,7 @@ void atom_func_end(uint8_t func_id) {
     P3IE |= BIT0;           // Enable comp interrupt
 }
 
-#elif   defined(DISCONNECT_SUPPLY_PROFILING)
+#elif defined(DEBS)
 // Disconnect supply profiling
 
 void atom_func_start(uint8_t func_id) {
@@ -672,8 +676,9 @@ void atom_func_start(uint8_t func_id) {
     }
 
     // *** Charging cycle ends, discharging cycle starts ***
-    // CEINT &= ~CEIIE;
+#ifdef DISCONNECT_SUPPLY_PROFILING
     P1OUT |= BIT5;      // Disconnect supply
+#endif
     // Take a Vcc reading, get Delta V_charge
     // adc_r2 = sample_vcc();
 
@@ -691,7 +696,9 @@ void atom_func_end(uint8_t func_id) {
     P7OUT &= ~BIT1;
 
     // *** Discharging cycle ends ***
+#ifdef DISCONNECT_SUPPLY_PROFILING
     P1OUT &= ~BIT5;     // Reconnect supply
+#endif
     // Take a Vcc reading, get Delta V_exe
     // adc_r1 = sample_vcc();
     // d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;

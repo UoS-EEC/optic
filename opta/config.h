@@ -19,6 +19,16 @@
 #define MAX_COMPE_RTAP  32  // Max comparator E resistor tap setting
 #define UNIT_COMPE_ADC  128
 
+
+
+#define OPTA
+// #define DEBS
+
+// Disconnect supply when profiling
+// Connect P1.5 to the short-circuiting gate to actually disconnect
+// #define DISCONNECT_SUPPLY_PROFILING
+
+
 #define DEFAULT_HI_THRESHOLD        66      // 2.40V
 // #define DEFAULT_HI_THRESHOLD        96      // Fixed threshold
 #define DEFAULT_LO_THRESHOLD        113     //
@@ -101,12 +111,6 @@ uint8_t adc_to_threshold[63] = {
 
 #define MIN_PROFILING_TIMER_CNT     4
 #define V_EXE_HISTORY_SIZE          10
-
-#define CONNECT_SUPPLY_PROFILING
-// #define DISCONNECT_SUPPLY_PROFILING     // Disconnect supply when profiling
-                                        // Remember to configure P1.5 for short-circuiting
-                                        // .. both in HW and SW
-
 #define LINEAR_ADAPT_COEFFICIENT    4
 
 
