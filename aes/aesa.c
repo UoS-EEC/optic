@@ -229,7 +229,7 @@ void aes_128_dec(uint8_t* key, uint8_t* iv, uint8_t* ciphertext,
 // 256-bit encryption
 void aes_256_enc(uint8_t* key, uint8_t* iv, uint8_t* plaintext,
                  uint8_t* ciphertext, uint8_t num_blocks) {
-    // atom_func_start(AES_256_ENC);
+    atom_func_start(AES_256_ENC);
     // atom_func_start_linear(AES_256_ENC, num_blocks);
 
     // Reset AES Module (clears internal state memory)
@@ -238,12 +238,14 @@ void aes_256_enc(uint8_t* key, uint8_t* iv, uint8_t* plaintext,
     // Configure AES
     AESACTL0 = AESCMEN    |             // Using DMA
                AESCM__CBC |             // cipher block chaining (CBC) mode
-               AESKL__256 |             // 128 bit key length
+               AESKL__256 |             // 256 bit key length
+            //    AESKL__192 |             // 192 bit key length
                AESOP_0;                 // Encryption
 
     // Write key into AESAKEY
     // (Load by word. Loading by byte should use AESAKEY0!)
-    uint16_t i = 16;  // i = key length in words (128 bit)
+    uint16_t i = 16;                    // i = key length in words (256 bit)
+    // uint16_t i = 12;                    // i = key length in words (192 bit)
     uint16_t* ptr = (uint16_t*) key;
     while (i--) AESAKEY = *ptr++;
     while (AESASTAT & AESBUSY) {}
@@ -286,14 +288,14 @@ void aes_256_enc(uint8_t* key, uint8_t* iv, uint8_t* plaintext,
     while (!(DMA0CTL & DMAIFG)) {}
     DMA0CTL &= ~DMAIFG;
 
-    // atom_func_end(AES_256_ENC);
+    atom_func_end(AES_256_ENC);
     // atom_func_end_linear(AES_256_ENC, num_blocks);
 }
 
 // 256-bit decryption
 void aes_256_dec(uint8_t* key, uint8_t* iv, uint8_t* ciphertext,
                  uint8_t* plaintext, uint8_t num_blocks) {
-    // atom_func_start(AES_256_DEC);
+    atom_func_start(AES_256_DEC);
 
     // Reset AES Module (clears internal state memory)
     AESACTL0 = AESSWRST;
@@ -364,5 +366,5 @@ void aes_256_dec(uint8_t* key, uint8_t* iv, uint8_t* ciphertext,
     while (!(DMA1CTL & DMAIFG)) {}      // Wait until end of decryption on DMA 1
     DMA0CTL &= ~DMAIFG;
 
-    // atom_func_end(AES_256_DEC);
+    atom_func_end(AES_256_DEC);
 }

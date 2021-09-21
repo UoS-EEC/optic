@@ -1,8 +1,8 @@
-# Experiment on the data size impact
+# Experiment on the impact of variable data sizes
 
 ## 1. Info and setup
 
-Date of experiment: 20 Sep 2021
+Date of experiment: 21 Sep 2021
 
 Workload: AES128 encryption
 
