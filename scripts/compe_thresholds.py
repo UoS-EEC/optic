@@ -18,3 +18,14 @@ for n in range(32):
     print("%4d" % adc, ",")
     # print(adc, ":", v_th)
 print("};")
+
+# %%
+t = 3000
+x = (t - 1.7e3) / 1.2e3
+y = -2.8e-5 * pow(x, 3) - 2.1e-8 * pow(x, 2) - 1.2e-5 * x + 0.002
+print(y)
+percent = (y / 0.0020965666504629632 - 1) * 100
+print("%f" % percent, "%")
+
+
+# %%

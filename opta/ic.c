@@ -656,7 +656,7 @@ void atom_func_end(uint8_t func_id) {
 // Disconnect supply profiling
 
 void atom_func_start(uint8_t func_id) {
-    P3IE &= ~BIT0;          // Disable comp interrupt
+    P3IE &= ~BIT0;              // Disable comp interrupt
     // *** Charging cycle starts ***/
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
@@ -691,9 +691,9 @@ void atom_func_end(uint8_t func_id) {
     P1OUT &= ~BIT0;
 
     // Indicate completion
-    P7OUT |= BIT1;
-    __delay_cycles(0xF);
-    P7OUT &= ~BIT1;
+    // P7OUT |= BIT1;
+    // __delay_cycles(0xF);
+    // P7OUT &= ~BIT1;
 
     // *** Discharging cycle ends ***
 #ifdef DISCONNECT_SUPPLY_PROFILING
