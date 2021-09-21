@@ -183,11 +183,16 @@ int main(void) {
         // aes_128_enc(key, iv, plaintext2, ciphertext2, 2);
         // aes_128_dec(key, iv, ciphertext2, deciphertext2, 2);
 
-        aes_128_enc(key, iv, input, output, 32);        // Encrypt 512B data
-        aes_128_enc(key, iv, input, output, 64);        // Encrypt 1KB data
-        aes_128_enc(key, iv, input, output, 128);       // Encrypt 2KB data
-        aes_128_enc(key, iv, input, output, 192);       // Encrypt 3KB data
-        aes_128_enc(key, iv, input, output, 255);       // Encrypt ~4KB data
+        // aes_128_enc(key, iv, input, output, 32);        // Encrypt 512B data
+        // aes_128_enc(key, iv, input, output, 64);        // Encrypt 1KB data
+        // aes_128_enc(key, iv, input, output, 128);       // Encrypt 2KB data
+        // aes_128_enc(key, iv, input, output, 192);       // Encrypt 3KB data
+        // aes_128_enc(key, iv, input, output, 255);       // Encrypt ~4KB data
+
+        // aes_128_enc(key, iv, input, output, 16);        // Encrypt 256B data
+        // aes_128_enc(key, iv, input, output, 96);        // Encrypt 1.5KB data
+        // aes_128_enc(key, iv, input, output, 160);       // Encrypt 2.5KB data
+        // aes_128_enc(key, iv, input, output, 224);       // Encrypt 3.5KB data
 
         // aes_128_dec(key, iv, input, input, 64);         // Decrypt 1KB data
         // aes_128_dec(key, iv, output, output2, 128);     // Decrypt 2KB data
