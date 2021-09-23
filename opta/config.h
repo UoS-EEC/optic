@@ -28,6 +28,8 @@
 // Connect P1.5 to the short-circuiting gate to actually disconnect
 #define DISCONNECT_SUPPLY_PROFILING
 
+
+
 #ifdef OPTA
 
 #define COMPARATOR_DELAY            __delay_cycles(180)
@@ -111,10 +113,10 @@ uint8_t adc_to_threshold[63] = {
 
 
 #ifdef DEBS
-#define DEFAULT_HI_THRESHOLD        59      // Fixed threshold
+#define DEFAULT_HI_THRESHOLD        24      // Fixed threshold
 #define DEFAULT_LO_THRESHOLD        113     // 1.83V
 #define PROFILING_INIT_THRESHOLD    42      // Any, not used
-#define COMPARATOR_DELAY            __delay_cycles(180)
+#define COMPARATOR_DELAY            __delay_cycles(240)
 #define V_EXE_HISTORY_SIZE          10
 #endif
 

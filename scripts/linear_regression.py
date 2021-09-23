@@ -8,11 +8,33 @@
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
-x = np.array([0.25, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]).reshape((-1, 1))
-y = np.array([26, 41, 61, 82, 107, 128, 153, 169, 194])
+import csv
+xx =[]
+yy = []
+with open('pv_curve.csv') as csv_file:
+    csv_reader = csv.reader(csv_file, delimiter=',')
+    line_count = 0
+    for row in csv_reader:
+        if line_count == 0:
+            print(f'Column names are {", ".join(row)}')
+            line_count += 1
+        else:
+            # print(f'\t{row[0]} : {row[1]}.')
+            xx.append(row[0])
+            yy.append(row[1])
+            line_count += 1
+    print(f'Processed {line_count} lines.')
+    print(xx)
+    print(yy)
+
+x = np.array(xx).reshape((-1, 1))
+y = np.array(yy)
+
 model = LinearRegression().fit(x, y)
 
 r_sq = model.score(x, y)
 print('coefficient of determination:', r_sq)
 print('intercept:', model.intercept_)
 print('slope:', model.coef_)
+
+#%%

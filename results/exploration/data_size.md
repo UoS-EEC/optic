@@ -23,5 +23,5 @@ Voltage drop. Errors are omitted as they are too small to measure (<5mV).
 | 2KB         | 107mV   | 3.288ms | 3.60uC |
 | 2.5KB       | 128mV   | 4.092ms | 4.30uC |
 | 3KB         | 153mV   | 4.896ms | 5.14uC |
-| 3.5B        | 169mV   | 5.700ms | 5.68uC |
+| 3.5KB       | 169mV   | 5.700ms | 5.68uC |
 | 4KB (4080B) | 194mV   | 6.479ms | 6.52uC |

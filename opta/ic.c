@@ -320,8 +320,6 @@ static void ext_comp_init() {
     P3SEL1 &= ~BIT0;
     P3SEL0 &= ~BIT0;
     P3DIR &= ~BIT0;
-    // P3REN |= BIT0;
-    // P3OUT |= BIT0;
     P3IES &= ~BIT0;
     P3IFG &= ~BIT0;
     P3IE |= BIT0;
@@ -347,6 +345,7 @@ static void set_threshold(uint8_t threshold) {
 }
 
 void __attribute__((interrupt(PORT3_VECTOR))) Port3_ISR(void) {
+    P8OUT |= BIT0;
     switch (__even_in_range(P3IV, P3IV__P3IFG7)) {
         case P3IV__NONE:    break;          // Vector  0:  No interrupt
         case P3IV__P3IFG0:                  // Vector  2:  P3.0 interrupt flag
@@ -378,6 +377,7 @@ void __attribute__((interrupt(PORT3_VECTOR))) Port3_ISR(void) {
         case P3IV__P3IFG7:  break;          // Vector  16:  P3.7 interrupt flag
         default: break;
     }
+    P8OUT &= ~BIT0;
 }
 
 #ifdef DEBUG_UART
@@ -665,9 +665,11 @@ void atom_func_start(uint8_t func_id) {
     if (P3IN & BIT0) {          // Enough budget
         set_threshold(DEFAULT_LO_THRESHOLD);
     } else {                    // Not enough
+        // High-to-low interrupt should be pending
         storing_energy = TRUE;
         P3IE |= BIT0;           // Enable comp interrupt
-        COMPARATOR_DELAY;
+        // COMPARATOR_DELAY;
+        __delay_cycles(10);
         // Should sleep here...
         // ... Wake from the ISR when adapt_threshold is hit
 
@@ -718,6 +720,11 @@ void atom_func_end(uint8_t func_id) {
     uart_send_str("\n\r");
     // P1OUT &= ~BIT0;     // Debug
 #endif
+    // Prevent fake interrupt
+    if (P3IN & BIT0) {          // Enough budget
+        P3IFG &= ~BIT0;
+    }
+
     P3IE |= BIT0;           // Enable comp interrupt
 }
 
