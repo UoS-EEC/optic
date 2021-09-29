@@ -12,6 +12,8 @@ So the system capacitance should be 35uF with additional 1.5uF on board (and it 
 
 Error bars (variations) are omitted as they are too small to observe (<5mV, precision of the scope).
 
+Run from 2.5V
+
 ## 2. Results
 
 ### Data size
@@ -76,3 +78,22 @@ Date of experiment: 23 Sep 2021
 | 2.634V        | 2.444V      | 190mV   |
 | 2.710V        | 2.521V      | 189mV   |
 | 3.360V        | 3.166V      | 194mV   |
+
+Date of experiment: 29 Sep 2021 
+
+| Start voltage | End Voltage | Delta V |
+| ------------- | ----------- | ------- |
+| 2.542V        | 2.352V      | 190mV   |
+| 3.641V        | 3.452V      | 189mV   |
+?
+
+Prior experiment (back in April? measured with sourcemeter, forgot the settings)
+
+| Voltage | Current consumption |
+| ------- | ------------------- |
+| 2.1V    | 750uA               |
+| 2.4V    | 755uA               |
+| 2.7V    | 750uA               |
+| 3.0V    | 763uA               |
+| 3.3V    | 764uA               |
+| 3.6V    | 764uA               |

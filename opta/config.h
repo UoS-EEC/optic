@@ -113,7 +113,7 @@ uint8_t adc_to_threshold[63] = {
 
 
 #ifdef DEBS
-#define DEFAULT_HI_THRESHOLD        24      // Fixed threshold
+#define DEFAULT_HI_THRESHOLD        15      // Fixed threshold
 #define DEFAULT_LO_THRESHOLD        113     // 1.83V
 #define PROFILING_INIT_THRESHOLD    42      // Any, not used
 #define COMPARATOR_DELAY            __delay_cycles(240)
