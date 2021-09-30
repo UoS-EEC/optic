@@ -11,7 +11,7 @@ from sklearn.linear_model import LinearRegression
 import csv
 xx =[]
 yy = []
-with open('pv_curve.csv') as csv_file:
+with open('variable_data.csv') as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     line_count = 0
     for row in csv_reader:
@@ -20,8 +20,8 @@ with open('pv_curve.csv') as csv_file:
             line_count += 1
         else:
             # print(f'\t{row[0]} : {row[1]}.')
-            xx.append(row[0])
-            yy.append(row[1])
+            xx.append(float(row[0]))
+            yy.append(float(row[1]))
             line_count += 1
     print(f'Processed {line_count} lines.')
     print(xx)
