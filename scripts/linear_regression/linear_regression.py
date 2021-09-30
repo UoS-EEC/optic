@@ -20,8 +20,8 @@ with open('variable_data.csv') as csv_file:
             line_count += 1
         else:
             # print(f'\t{row[0]} : {row[1]}.')
-            xx.append(float(row[0]))
-            yy.append(float(row[1]))
+            xx.append(float(row[3]))
+            yy.append(float(row[2]))
             line_count += 1
     print(f'Processed {line_count} lines.')
     print(xx)
