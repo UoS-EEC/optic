@@ -380,7 +380,7 @@ def main_multi():
     print("DEBS low:", debs_low_completion, debs_low_failure)
     print(sum(debs_low_completion) / len(debs_low_completion), max(debs_low_completion), min(debs_low_completion))
     print(sum(debs_low_failure) / len(debs_low_failure), max(debs_low_failure), min(debs_low_failure))
-    print("DEBS low:", debs_high_completion, debs_high_failure)
+    print("DEBS high:", debs_high_completion, debs_high_failure)
     print(sum(debs_high_completion) / len(debs_high_completion), max(debs_high_completion), min(debs_high_completion))
     print(sum(debs_high_failure) / len(debs_high_failure), max(debs_high_failure), min(debs_high_failure))
 
