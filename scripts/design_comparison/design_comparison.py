@@ -19,11 +19,12 @@ def run_time(block) -> float:
 config_scale_v = [1, 1.185567, 1.262886]
 config_scale_t = [1, 1.178886, 1.328291]
 system_capacitance = 10e-6  # 10uF
+capacitance_reduction = 0
 
 class BaseIntermittent:
     # arr1 and arr2 should have the same len
     def __init__(self,vcc_init,arr1,arr2) -> None:
-        self.c = system_capacitance * 0.4
+        self.c = system_capacitance * (1 - capacitance_reduction)
 
         self.i_draw_lpm = 10e-6
         self.i_draw_exe = 0
@@ -262,7 +263,7 @@ def main_single():
     debs_high_v_task = 1.79
     debs_high_obj = DEBS(vcc_debs_high, random_arr1, random_arr2, debs_high_v_task)
 
-    while t < 3:  # Total simulation time in seconds
+    while t < 2:  # Total simulation time in seconds
         vcc_repa = repa_obj.update(pv_current(vcc_repa), t_step)
         vcc_samoyed = samoyed_obj.update(pv_current(vcc_samoyed), t_step)
         vcc_debs_low = debs_low_obj.update(pv_current(vcc_debs_low), t_step)
@@ -284,15 +285,42 @@ def main_single():
 
     fig = plt.figure(constrained_layout=True)
     gs = gridspec.GridSpec(ncols=2, nrows=2, figure=fig)
+    
+
     ax0 = fig.add_subplot(gs[0, 0])
-    ax0.plot(t_trace, v_trace_repa)
-    ax1 = fig.add_subplot(gs[1, 0])
+    ax0.plot(t_trace, v_trace_debs_low)
+    ax0.set_title('DEBS Low')
+    ax0.set_xlabel('Time (s)')
+    ax0.set_ylabel('Voltage (V)')
+    ax0.set_xlim([0, 2])
+    ax0.set_ylim([0, 3.6])
+
+    ax1 = fig.add_subplot(gs[0, 1])
     ax1.plot(t_trace, v_trace_samoyed)
-    ax2 = fig.add_subplot(gs[0, 1])
-    ax2.plot(t_trace, v_trace_debs_low)
+    ax1.set_title('Samoyed')
+    ax1.set_xlabel('Time (s)')
+    ax1.set_ylabel('Voltage (V)')
+    ax1.set_xlim([0, 2])
+    ax1.set_ylim([0, 3.6])
+
+    ax2 = fig.add_subplot(gs[1, 0])
+    ax2.plot(t_trace, v_trace_debs_high)
+    ax2.set_title('DEBS High')
+    ax2.set_xlabel('Time (s)')
+    ax2.set_ylabel('Voltage (V)')
+    ax2.set_xlim([0, 2])
+    ax2.set_ylim([0, 3.6])
+
     ax3 = fig.add_subplot(gs[1, 1])
-    ax3.plot(t_trace, v_trace_debs_high)
-    plt.show()
+    ax3.plot(t_trace, v_trace_repa)
+    ax3.set_title('Adaptive')
+    ax3.set_xlabel('Time (s)')
+    ax3.set_ylabel('Voltage (V)')
+    ax3.set_xlim([0, 2])
+    ax3.set_ylim([0, 3.6])
+
+    # plt.show()
+    plt.savefig('voltage_traces.pdf') 
 
 
 # Multi tests main
@@ -425,8 +453,8 @@ repa_fail_mean, ",", repa_fail_err_p, ",", repa_fail_err_m)
 
 
 if __name__ == "__main__":
-    # main_single()
-    main_multi()
+    main_single()
+    # main_multi()
 # %%
 
 # %%
