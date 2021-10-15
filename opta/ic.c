@@ -25,7 +25,7 @@ typedef struct AtomFuncState_s {
     uint8_t check_fail;
 
     // Adaptive threshold
-    uint8_t  adapt_threshold;   // Init: PROFILING_INIT_THRESHOLD
+    uint8_t  adapt_threshold;   // Init: PROFILING_THRESHOLD
     // Profiling variables
     uint16_t v_exe_history[V_EXE_HISTORY_SIZE];
     uint8_t  v_exe_hist_index;  // Init: 0
@@ -46,8 +46,8 @@ AtomFuncState PERSISTENT atom_state[ATOM_FUNC_NUM];
 
 // Control signals
 uint8_t PERSISTENT snapshot_valid = 0;
-uint8_t PERSISTENT suspending;  // From backup: 1, from restore: 0
-uint8_t storing_energy;         // Comparator E control signal
+uint8_t PERSISTENT suspending;          // From backup: 1, from restore: 0
+volatile uint8_t storing_energy;        // Comparator E control signal
 
 // Profiling parameters
 uint16_t adc_r1;
@@ -238,16 +238,14 @@ static void gpio_init(void) {
     P6OUT = 0;
     // Don't change P6.0, P6.1, P6.2 here,
     // ..otherwise huge current draw when configuring UCA3
-    P6DIR = 0xf8;
+    // P6DIR = 0xf8;
+    P6DIR = 0xff;
     P7OUT = 0;
     P7DIR = 0xff;
     P8OUT = 0;
     P8DIR = 0xff;
     PJOUT = 0;
     PJDIR = 0xff;
-
-    // Disable GPIO power-on default high-impedance mode
-    PM5CTL0 &= ~LOCKLPM5;
 }
 
 static void adc12_init(void) {
@@ -317,17 +315,19 @@ static void ext_comp_init() {
     UCA3CTLW0 &= ~UCSWRST;
 
     // Initialise P3.0 for the comparator interrupt
+    // External pull-up
     P3SEL1 &= ~BIT0;
     P3SEL0 &= ~BIT0;
     P3DIR &= ~BIT0;
-    P3IES &= ~BIT0;
+    P3REN &= ~BIT0;
+    P3IES &= ~BIT0;     // Initial low-to-high transition
     P3IFG &= ~BIT0;
     P3IE |= BIT0;
 }
 
 // Set the threshold of the external comparator
 static void set_threshold(uint8_t threshold) {
-    // P3IE &= ~BIT0;              // Disable comp interrupt
+    P3IE &= ~BIT0;              // Disable comp interrupt
 
     P6OUT &= ~BIT3;             // CS_N low, enable
 
@@ -341,17 +341,20 @@ static void set_threshold(uint8_t threshold) {
 
     P6OUT |= BIT3;              // CS_N high, disable
 
-    // P3IE |= BIT0;               // Enable comp interrupt
+    P3IE |= BIT0;               // Enable comp interrupt
 }
 
 void __attribute__((interrupt(PORT3_VECTOR))) Port3_ISR(void) {
+#ifdef  DEBUG_GPIO
     P8OUT |= BIT0;
+#endif
     switch (__even_in_range(P3IV, P3IV__P3IFG7)) {
         case P3IV__NONE:    break;          // Vector  0:  No interrupt
         case P3IV__P3IFG0:                  // Vector  2:  P3.0 interrupt flag
             if (P3IES & BIT0) {     // Falling edge, low threshold hit
-                if (!storing_energy) {
+                if (storing_energy == FALSE) {
                     set_threshold(DEFAULT_HI_THRESHOLD);
+                    // set_threshold(PROFILING_THRESHOLD);
                 }
                 P3IES &= ~BIT0;     // Detect rising edge next
 #ifdef  DEBUG_GPIO
@@ -377,7 +380,9 @@ void __attribute__((interrupt(PORT3_VECTOR))) Port3_ISR(void) {
         case P3IV__P3IFG7:  break;          // Vector  16:  P3.7 interrupt flag
         default: break;
     }
+#ifdef  DEBUG_GPIO
     P8OUT &= ~BIT0;
+#endif
 }
 
 #ifdef DEBUG_UART
@@ -436,15 +441,20 @@ char* uitoa_10(unsigned num, char* const str) {
 #endif
 
 // Boot function
-void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0")))
-iclib_boot() {
-    WDTCTL = WDTPW | WDTHOLD;            // Stop watchdog timer
-    __set_SP_register(&__bootstackend);  // Boot stack
-    __bic_SR_register(GIE);              // Disable interrupts during startup
+void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_boot() {
+    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
+    __set_SP_register(&__bootstackend);     // Boot stack
+    __dint();                               // Disable interrupts during startup
 
     gpio_init();
     clock_init();
     ext_comp_init();
+#ifdef DEBUG_UART
+    uart_init();
+#endif
+
+    PM5CTL0 &= ~LOCKLPM5;   // Disable GPIO power-on default high-impedance mode
+    set_threshold(DEFAULT_HI_THRESHOLD);
 
     storing_energy = FALSE;
 #ifdef  DEBUG_GPIO
@@ -458,9 +468,6 @@ iclib_boot() {
 
     // Remaining initialization stack for normal execution
     adc12_init();
-#ifdef DEBUG_UART
-    uart_init();
-#endif
 
     // Boot functions that are mapped to ram (most importantly fastmemcpy)
     uint8_t *dst = &__ramtext_low;
@@ -482,7 +489,7 @@ iclib_boot() {
 
         // Init atom_state
         for (uint8_t i = 0; i < ATOM_FUNC_NUM; i++) {
-            atom_state[i].adapt_threshold = PROFILING_INIT_THRESHOLD;
+            atom_state[i].adapt_threshold = PROFILING_THRESHOLD;
             atom_state[i].v_exe_hist_index = 0;
             // atom_state[i].v_exe_mean = 0;
         }
@@ -503,6 +510,7 @@ iclib_boot() {
 
 void atom_func_start(uint8_t func_id) {
     P3IE &= ~BIT0;              // Disable comp interrupt
+    storing_energy = TRUE;
 
 #ifdef DEBUG_GPIO
     P7OUT |= BIT0;      // Indicate overhead
@@ -527,19 +535,19 @@ void atom_func_start(uint8_t func_id) {
 
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
-    set_threshold(adc_to_threshold[atom_state[func_id].adapt_threshold]);
+    // set_threshold(adc_to_threshold[atom_state[func_id].adapt_threshold]);
+    set_threshold(PROFILING_THRESHOLD);
     COMPARATOR_DELAY;
     if (P3IN & BIT0) {          // Enough budget
         set_threshold(DEFAULT_LO_THRESHOLD);
     } else {                    // Not enough
-        storing_energy = TRUE;
         P3IE |= BIT0;           // Enable comp interrupt
-        COMPARATOR_DELAY;
+        // COMPARATOR_DELAY;
+        __delay_cycles(10);
         // Should sleep here...
         // ... Wake from the ISR when adapt_threshold is hit
 
         P3IE &= ~BIT0;          // Disable comp interrupt
-        storing_energy = FALSE;
     }
 
     // *** Charging cycle ends, discharging cycle starts ***
@@ -575,10 +583,12 @@ void atom_func_end(uint8_t func_id) {
     P1OUT &= ~BIT0;
 #endif
 
+#ifdef DEBUG_COMPLETION_INDICATOR
     // Indicate completion
     P7OUT |= BIT1;
     __delay_cycles(0xF);
     P7OUT &= ~BIT1;
+#endif
 
     // *** Discharging cycle ends ***
 #ifdef DEBUG_GPIO
@@ -611,10 +621,10 @@ void atom_func_end(uint8_t func_id) {
 #ifdef DEBUG_UART
             // UART debug info
             char str_buffer[20];
-            // uart_send_str(uitoa_10(v_exe, str_buffer));
-            uart_send_str(uitoa_10(timer_cnt1, str_buffer));
-            uart_send_str(" ");
-            uart_send_str(uitoa_10(timer_cnt2, str_buffer));
+            uart_send_str(uitoa_10(v_exe, str_buffer));
+            // uart_send_str(uitoa_10(timer_cnt1, str_buffer));
+            // uart_send_str(" ");
+            // uart_send_str(uitoa_10(timer_cnt2, str_buffer));
             uart_send_str("\n\r");
 #endif
 
@@ -623,7 +633,7 @@ void atom_func_end(uint8_t func_id) {
 
                 // Calculate v_exe_mean
                 uint32_t v_exe_mean = 0;
-                for (int i = 0; i < V_EXE_HISTORY_SIZE; i++) {
+                for (int i = 0; i < V_EXE_HISTORY_SIZE; ++i) {
                     v_exe_mean += atom_state[func_id].v_exe_history[i];
                 }
                 v_exe_mean /= V_EXE_HISTORY_SIZE;
@@ -638,7 +648,7 @@ void atom_func_end(uint8_t func_id) {
                 // UART debug info
                 // char str_buffer[20];
                 uart_send_str("mean: ");
-                uart_send_str(uitoa_10(atom_state[func_id].v_exe_mean, str_buffer));
+                uart_send_str(uitoa_10(v_exe_mean, str_buffer));
                 // uart_send_str(uitoa_10(atom_state[func_id].adapt_threshold, str_buffer));
                 uart_send_str("\n\r");
 #endif
@@ -649,6 +659,7 @@ void atom_func_end(uint8_t func_id) {
 #ifdef DEBUG_GPIO
     P7OUT &= ~BIT0;     // Indicate overhead
 #endif
+    storing_energy = FALSE;
     P3IE |= BIT0;           // Enable comp interrupt
 }
 
@@ -657,6 +668,7 @@ void atom_func_end(uint8_t func_id) {
 
 void atom_func_start(uint8_t func_id) {
     P3IE &= ~BIT0;              // Disable comp interrupt
+    storing_energy = TRUE;
     // *** Charging cycle starts ***/
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
@@ -666,7 +678,6 @@ void atom_func_start(uint8_t func_id) {
         set_threshold(DEFAULT_LO_THRESHOLD);
     } else {                    // Not enough
         // High-to-low interrupt should be pending
-        storing_energy = TRUE;
         P3IE |= BIT0;           // Enable comp interrupt
         // COMPARATOR_DELAY;
         __delay_cycles(10);
@@ -674,7 +685,6 @@ void atom_func_start(uint8_t func_id) {
         // ... Wake from the ISR when adapt_threshold is hit
 
         P3IE &= ~BIT0;          // Disable comp interrupt
-        storing_energy = FALSE;
     }
 
     // *** Charging cycle ends, discharging cycle starts ***
@@ -682,28 +692,34 @@ void atom_func_start(uint8_t func_id) {
     P1OUT |= BIT5;      // Disconnect supply
 #endif
     // Take a Vcc reading, get Delta V_charge
-    // adc_r2 = sample_vcc();
+    adc_r2 = sample_vcc();
 
     // Run the atomic function...
+#ifdef DEBUG_GPIO
     P1OUT |= BIT0;  // Debug
+#endif
 }
 
 void atom_func_end(uint8_t func_id) {
     // ...Atomic function ends
+#ifdef DEBUG_GPIO
     P1OUT &= ~BIT0;
+#endif
 
+#ifdef DEBUG_COMPLETION_INDICATOR
     // Indicate completion
-    // P7OUT |= BIT1;
-    // __delay_cycles(0xF);
-    // P7OUT &= ~BIT1;
+    P7OUT |= BIT1;
+    __delay_cycles(0xF);
+    P7OUT &= ~BIT1;
+#endif
 
     // *** Discharging cycle ends ***
 #ifdef DISCONNECT_SUPPLY_PROFILING
     P1OUT &= ~BIT5;     // Reconnect supply
 #endif
     // Take a Vcc reading, get Delta V_exe
-    // adc_r1 = sample_vcc();
-    // d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
+    adc_r1 = sample_vcc();
+    d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
 
     // atom_state[func_id].v_exe_mean -= atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
     // atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] = (uint16_t) d_v_discharge;
@@ -715,16 +731,20 @@ void atom_func_end(uint8_t func_id) {
 #ifdef DEBUG_UART
     // UART debug info
     char str_buffer[20];
-    // P1OUT |= BIT0;      // Debug
-    uart_send_str(uitoa_10(atom_state[func_id].v_exe_mean, str_buffer));
+    // uart_send_str(uitoa_10(atom_state[func_id].v_exe_mean, str_buffer));
+    uart_send_str(uitoa_10(d_v_discharge, str_buffer));
+    uart_send_str(" ");
+    uart_send_str(uitoa_10((uint16_t)adc_r2, str_buffer));
+    uart_send_str(" ");
+    uart_send_str(uitoa_10((uint16_t)adc_r1, str_buffer));
     uart_send_str("\n\r");
-    // P1OUT &= ~BIT0;     // Debug
 #endif
     // Prevent fake interrupt
     if (P3IN & BIT0) {          // Enough budget
         P3IFG &= ~BIT0;
     }
 
+    storing_energy = FALSE;
     P3IE |= BIT0;           // Enable comp interrupt
 }
 
@@ -734,6 +754,8 @@ void atom_func_end(uint8_t func_id) {
 
 /*
 // Linear adaptation utility
+
+#ifdef OPTA
 
 // The following parameters should be dedicated to each function later
 uint16_t PERSISTENT param_min = 0xFFFF;
@@ -801,10 +823,12 @@ void atom_func_end_linear(uint8_t func_id, uint8_t param) {
     // ...Atomic function ends
     P1OUT &= ~BIT0;
 
+#ifdef DEBUG_COMPLETION_INDICATOR
     // Indicate completion
     P7OUT |= BIT1;
     __delay_cycles(0xF);
     P7OUT &= ~BIT1;
+#endif
 
     // *** Discharging cycle ends ***
     P7OUT |= BIT0;      // Indicate overhead
@@ -860,4 +884,6 @@ void atom_func_end_linear(uint8_t func_id, uint8_t param) {
     P7OUT &= ~BIT0;     // Indicate overhead
     CEINT |= CEIIE;
 }
+
+#endif
 */

@@ -43,7 +43,7 @@ target_link_directories(
 
 target_link_libraries(
     ${TARGET_NAME}
-    PUBLIC opta
+    # PUBLIC opta
     # PRIVATE IQmathLib_extracted
     # PRIVATE m
     PRIVATE mul_f5
@@ -56,7 +56,7 @@ target_link_options(
     PRIVATE -T ${MSP430_GCC_DIR}/include/${DEVICE}_symbols.ld
     # PRIVATE -nostdlib  # Include -nodefaultlibs and -nostartfiles
     # PRIVATE -nodefaultlibs
-    PRIVATE -nostartfiles
+    # PRIVATE -nostartfiles
 )
 
 add_upload(${TARGET_NAME})

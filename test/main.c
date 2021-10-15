@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #include <msp430fr5994.h>
-#include "opta/ic.h"
+// #include "opta/ic.h"
 
 #define UART
 
@@ -72,10 +72,6 @@ uint16_t sample_vcc(void) {
     while (!(ADC12IFGR0 & BIT0)) {}
     P8OUT &= ~BIT0;
     return ADC12MEM0;
-}
-
-void dummy() {
-    atom_func_start(0);
 }
 
 int main(void) {

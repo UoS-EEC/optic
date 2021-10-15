@@ -5,7 +5,6 @@
 #ifndef OPTA_CONFIG_H_
 #define OPTA_CONFIG_H_
 
-// #define DEBS
 #define TRACK_STACK
 
 // Indicating the maximum size of each FRAM snapshot
@@ -20,22 +19,23 @@
 #define UNIT_COMPE_ADC  128
 
 
-// Choose one!
+// =====================
+// !!! Choose one !!!
 // #define OPTA
 #define DEBS
+// =====================
 
 // Disconnect supply when profiling
 // Connect P1.5 to the short-circuiting gate to actually disconnect
 #define DISCONNECT_SUPPLY_PROFILING
 
-
+#define COMPARATOR_DELAY            __delay_cycles(240)
 
 #ifdef OPTA
 
-#define COMPARATOR_DELAY            __delay_cycles(180)
-#define DEFAULT_HI_THRESHOLD        66      // 2.40V
-#define DEFAULT_LO_THRESHOLD        113     // 1.83V
-#define PROFILING_INIT_THRESHOLD    42      // Index, 3V
+#define DEFAULT_HI_THRESHOLD        54      // See table below
+#define DEFAULT_LO_THRESHOLD        113     // See table below
+#define PROFILING_THRESHOLD    36      // See table below
 // #define MIN_THRESHOLD        116
 #define THRESHOLD_TABLE_MAX_INDEX   63
 #define ADC_STEP                    32
@@ -109,23 +109,23 @@ uint8_t adc_to_threshold[63] = {
 #define MIN_PROFILING_TIMER_CNT     4
 #define V_EXE_HISTORY_SIZE          10
 
-#endif  // OPTA
+#define LINEAR_ADAPT_COEFFICIENT    4
 
+#elif defined(DEBS)
 
-#ifdef DEBS
-#define DEFAULT_HI_THRESHOLD        15      // Fixed threshold
-#define DEFAULT_LO_THRESHOLD        113     // 1.83V
-#define PROFILING_INIT_THRESHOLD    42      // Any, not used
-#define COMPARATOR_DELAY            __delay_cycles(240)
+#define DEFAULT_HI_THRESHOLD        36      // See table
+#define DEFAULT_LO_THRESHOLD        113     // See table
+#define PROFILING_THRESHOLD         36      // See table
 #define V_EXE_HISTORY_SIZE          10
+
+#else
+#error Specify a method between OPTA and DEBS!
 #endif
 
 
-#define LINEAR_ADAPT_COEFFICIENT    4
-
-
 #define DEBUG_GPIO
-// #define DEBUG_UART
+#define DEBUG_UART
+// #define DEBUG_COMPLETION_INDICATOR
 
 
 #endif  // OPTA_CONFIG_H_
