@@ -229,16 +229,13 @@ static void gpio_init(void) {
     P1DIR = 0xff;
     P2OUT = 0;
     P2DIR = 0xff;
-    P3OUT = 0;
-    P3DIR = 0xff;
+    // P3OUT = 0;
+    // P3DIR = 0xff;
     P4OUT = 0;
     P4DIR = 0xff;
     P5OUT = 0;
     P5DIR = 0xff;
     P6OUT = 0;
-    // Don't change P6.0, P6.1, P6.2 here,
-    // ..otherwise huge current draw when configuring UCA3
-    // P6DIR = 0xf8;
     P6DIR = 0xff;
     P7OUT = 0;
     P7DIR = 0xff;
@@ -249,10 +246,6 @@ static void gpio_init(void) {
 }
 
 static void adc12_init(void) {
-    // Set up internal Vref
-    // while (REFCTL0 & REFGENBUSY) {}
-    // REFCTL0 |= REFVSEL_0;       // Select internal Vref (VR+) = 1.2V (default)
-
     // Configure ADC12
     ADC12CTL0 = ADC12SHT0_2 |   // 16 cycles sample and hold time
                 ADC12ON;        // ADC12 on
@@ -273,6 +266,11 @@ static void adc12_init(void) {
     P3SEL0 |= BIT1;
     ADC12MCTL0 = ADC12INCH_13|          // Select ch A13 at P3.1
                  ADC12VRSEL_1;          // VR+ = VREF buffered, VR- = Vss
+
+    // Set up internal Vref (making ADC reading ~50us faster, but draw ~20uA more)
+    // while (REFCTL0 & REFGENBUSY) {}
+    // REFCTL0 = REFVSEL_0 | REFON_1;      // Select internal Vref (VR+) = 1.2V (default), REF ON
+    // while (!(REFCTL0 & REFBGRDY)) {}    // Wait for reference generator to settle
 }
 
 // Take ~82us
@@ -346,7 +344,7 @@ static void set_threshold(uint8_t threshold) {
 
 void __attribute__((interrupt(PORT3_VECTOR))) Port3_ISR(void) {
 #ifdef  DEBUG_GPIO
-    P8OUT |= BIT0;
+    P8OUT |= BIT1;
 #endif
     switch (__even_in_range(P3IV, P3IV__P3IFG7)) {
         case P3IV__NONE:    break;          // Vector  0:  No interrupt
@@ -381,7 +379,7 @@ void __attribute__((interrupt(PORT3_VECTOR))) Port3_ISR(void) {
         default: break;
     }
 #ifdef  DEBUG_GPIO
-    P8OUT &= ~BIT0;
+    P8OUT &= ~BIT1;
 #endif
 }
 
