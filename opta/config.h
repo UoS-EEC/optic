@@ -21,21 +21,22 @@
 
 // =====================
 // !!! Choose one !!!
-// #define OPTA
-#define DEBS
+#define OPTA
+// #define DEBS
 // =====================
 
 // Disconnect supply when profiling
 // Connect P1.5 to the short-circuiting gate to actually disconnect
-#define DISCONNECT_SUPPLY_PROFILING
+// #define DISCONNECT_SUPPLY_PROFILING
 
 #define COMPARATOR_DELAY            __delay_cycles(240)
+#define ADC_HIGH_RD_CORRECT         35
 
 #ifdef OPTA
 
 #define DEFAULT_HI_THRESHOLD        54      // See table below
 #define DEFAULT_LO_THRESHOLD        113     // See table below
-#define PROFILING_THRESHOLD    36      // See table below
+#define PROFILING_THRESHOLD         36      // See table below
 // #define MIN_THRESHOLD        116
 #define THRESHOLD_TABLE_MAX_INDEX   63
 #define ADC_STEP                    32
@@ -123,9 +124,10 @@ uint8_t adc_to_threshold[63] = {
 #endif
 
 
-#define DEBUG_GPIO
+// #define DEBUG_GPIO
 #define DEBUG_UART
 // #define DEBUG_COMPLETION_INDICATOR
+#define DEBUG_TASK_INDICATOR
 
 
 #endif  // OPTA_CONFIG_H_

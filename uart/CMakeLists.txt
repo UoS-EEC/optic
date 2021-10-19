@@ -26,10 +26,11 @@ target_compile_options(
     # PRIVATE -O2
     PRIVATE -msmall
     PRIVATE -g 
-    # PRIVATE -mhwmult=none
     PRIVATE -mhwmult=f5series
     PRIVATE -Wall
-    PRIVATE -fno-zero-initialized-in-bss  # We don't want to zero out whole bss on every boot
+    PRIVATE -fno-zero-initialized-in-bss    # We don't want to zero out whole bss on every boot
+    PRIVATE -fdata-sections                 # Separate data from code
+    PRIVATE -ffunction-sections             # Separate code into translation units
 )
 
 # linker
@@ -53,6 +54,7 @@ target_link_options(
     # PRIVATE -nostdlib  # Include -nodefaultlibs and -nostartfiles
     # PRIVATE -nodefaultlibs
     PRIVATE -nostartfiles
+    PRIVATE -Wl,--gc-sections   # Discard unused functions
 )
 
 add_upload(${TARGET_NAME})
