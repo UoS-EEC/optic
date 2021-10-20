@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 #include <msp430fr5994.h>
-#include "opta/ic.h"
-#include "opta/config.h"
+#include "radio/ic.h"
+#include "radio/config.h"
 
 
 #define TRUE    1
@@ -446,7 +446,9 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
 #ifdef DEBUG_UART
     uart_init();
 #endif
-
+    // Additional user init stack
+    nrf24_spi_init();
+    nrf24_ce_irq_pins_init();
     PM5CTL0 &= ~LOCKLPM5;       // Disable GPIO power-on default high-impedance mode
     is_storing_energy = FALSE;
     set_threshold(DEFAULT_HI_THRESHOLD);

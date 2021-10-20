@@ -22,7 +22,7 @@ target_compile_options(
     PRIVATE -O0
     PRIVATE -msmall
     PRIVATE -g 
-    PRIVATE -mhwmult=auto
+    PRIVATE -mhwmult=f5series
     PRIVATE -Wall
     PRIVATE -fno-zero-initialized-in-bss    # We don't want to zero out whole bss on every boot
     PRIVATE -fdata-sections                 # Separate data from code

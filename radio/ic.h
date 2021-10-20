@@ -2,8 +2,8 @@
 // All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#ifndef OPTA_IC_H_
-#define OPTA_IC_H_
+#ifndef RADIO_IC_H_
+#define RADIO_IC_H_
 
 #include <stdint.h>
 #include <stddef.h>
@@ -30,4 +30,4 @@ void atom_func_end_linear(uint8_t func_id, uint8_t param);
 #define ATOM_FUNC_NUM       2
 
 
-#endif  // OPTA_IC_H_
+#endif  // RADIO_IC_H_

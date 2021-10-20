@@ -4,13 +4,19 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-set(TARGET_NAME "aes")
+set(TARGET_NAME "radio")
 
 add_executable(
     ${TARGET_NAME}
     main.c
-    aesa.c
-    aesa.h
+    ic.c
+    ic.h
+    config.h
+    hal_spi_rf.c
+    hal_spi_rf.h
+    msp_nrf24.c
+    msp_nrf24.h
+    nRF24L01.h
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES SUFFIX ".elf")
@@ -18,14 +24,13 @@ set_target_properties(${TARGET_NAME} PROPERTIES SUFFIX ".elf")
 target_include_directories(
     ${TARGET_NAME} 
     PRIVATE ${MSP430_GCC_DIR}/include
-    PRIVATE ${PROJECT_SOURCE_DIR}/opta
 )
 
 target_compile_options(
     ${TARGET_NAME}
     PRIVATE -std=c99
     PRIVATE -mmcu=${DEVICE} 
-    # PRIVATE -O2
+    PRIVATE -O0
     PRIVATE -msmall
     PRIVATE -g 
     PRIVATE -mhwmult=f5series
@@ -33,6 +38,7 @@ target_compile_options(
     PRIVATE -fno-zero-initialized-in-bss    # We don't want to zero out whole bss on every boot
     PRIVATE -fdata-sections                 # Separate data from code
     PRIVATE -ffunction-sections             # Separate code into translation units
+    PRIVATE 
 )
 
 # linker
@@ -45,7 +51,7 @@ target_link_directories(
 
 target_link_libraries(
     ${TARGET_NAME}
-    PUBLIC opta
+    PRIVATE mul_f5
 )
 
 target_link_options(

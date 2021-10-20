@@ -2,8 +2,8 @@
 // All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#ifndef OPTA_CONFIG_H_
-#define OPTA_CONFIG_H_
+#ifndef RADIO_CONFIG_H_
+#define RADIO_CONFIG_H_
 
 #define TRACK_STACK
 
@@ -124,23 +124,15 @@ uint8_t adc_to_threshold[63] = {
 #endif
 
 
-// // #define CUSTOM_EXTRA_INIT_STACK
-// #ifdef CUSTOM_EXTRA_INIT_STACK
-// // Include the headers containing the init functions
-// #include "radio/hal_spi_rf.h"
-// #include "radio/msp_nrf24.h"
-// // This function will be called in the bootstrap
-// void custom_extra_init() {
-//     nrf24_spi_init();
-//     nrf24_ce_irq_pins_init();
-// }
-// #endif
+// Include the extra headers for radio init
+#include "radio/hal_spi_rf.h"
+#include "radio/msp_nrf24.h"
 
 
 // #define DEBUG_GPIO
-#define DEBUG_UART
+// #define DEBUG_UART
 // #define DEBUG_COMPLETION_INDICATOR
 #define DEBUG_TASK_INDICATOR
 
 
-#endif  // OPTA_CONFIG_H_
+#endif  // RADIO_CONFIG_H_
