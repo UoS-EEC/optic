@@ -3,3 +3,5 @@
 /model/bin/
 /_refs
 /test
+/results
+/scripts/process_profiling_results/*.txt
