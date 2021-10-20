@@ -46,9 +46,9 @@ import math
 fin = open('input.txt', 'r')
 fout = open('output.txt', 'w')
 
-dstr_group_size = 10    # Should be an even number
+dstr_group_size = 12    # Should be an even number
 dstr_step = 5
-dstr_ref = 260
+dstr_ref = 197          # mV
 v_task_dist = [0] * dstr_group_size
 v_task_arr = []
 convert = 1 / 4095 * 3600       # Factor that converts digital values to mV voltage
@@ -75,14 +75,14 @@ for i in range(v_history_size * v_round_cnt):
         group_id = int((v_task_arr[i] - dstr_ref) / dstr_step) + int(dstr_group_size / 2)
     else:
         group_id = -int(math.ceil((dstr_ref - v_task_arr[i]) / dstr_step)) + int(dstr_group_size / 2)
-    print(group_id)
-#     if group_id < 0:
-#         group_id = 0
-#     elif group_id >= dstr_group_size:
-#         group_id = dstr_group_size - 1
-#     v_task_dist[group_id] += 1
+    if group_id < 0:
+        group_id = 0
+    elif group_id >= dstr_group_size:
+        group_id = dstr_group_size - 1
+    v_task_dist[group_id] += 1
+    # print(group_id, v_task_arr[i] - dstr_ref)
 
-# print(v_task_dist)
+print(v_task_dist)
 
 # fout.write(str(i))
 # fout.write(",")
