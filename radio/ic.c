@@ -552,7 +552,7 @@ void atom_func_start(uint8_t func_id) {
         // Don't profile if charging time is too short
         if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {
             // Take a Vcc reading, get Delta V_charge
-            adc_r2 = sample_vcc() - ADC_HIGH_RD_CORRECT;
+            adc_r2 = sample_vcc();
             d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
         }
     }
@@ -689,7 +689,7 @@ void atom_func_start(uint8_t func_id) {
     P1OUT |= BIT5;      // Disconnect supply
 #endif
     // Take a Vcc reading, get Delta V_charge
-    adc_r2 = sample_vcc() - ADC_HIGH_RD_CORRECT;
+    adc_r2 = sample_vcc();
 
     // Run the atomic function...
 #ifdef DEBUG_TASK_INDICATOR

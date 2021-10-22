@@ -124,20 +124,7 @@ uint8_t adc_to_threshold[63] = {
 #endif
 
 
-// // #define CUSTOM_EXTRA_INIT_STACK
-// #ifdef CUSTOM_EXTRA_INIT_STACK
-// // Include the headers containing the init functions
-// #include "radio/hal_spi_rf.h"
-// #include "radio/msp_nrf24.h"
-// // This function will be called in the bootstrap
-// void custom_extra_init() {
-//     nrf24_spi_init();
-//     nrf24_ce_irq_pins_init();
-// }
-// #endif
-
-
-// #define DEBUG_GPIO
+#define DEBUG_GPIO
 #define DEBUG_UART
 // #define DEBUG_COMPLETION_INDICATOR
 #define DEBUG_TASK_INDICATOR

@@ -46,9 +46,9 @@ import math
 fin = open('input.txt', 'r')
 fout = open('output.txt', 'w')
 
-dstr_group_size = 12    # Should be an even number
+dstr_group_size = 16    # Should be an even number
 dstr_step = 5
-dstr_ref = 197          # mV
+dstr_ref = 730          # mV
 v_task_dist = [0] * dstr_group_size
 v_task_arr = []
 convert = 1 / 4095 * 3600       # Factor that converts digital values to mV voltage

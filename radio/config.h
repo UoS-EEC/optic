@@ -21,16 +21,16 @@
 
 // =====================
 // !!! Choose one !!!
-// #define OPTA
-#define DEBS
+#define OPTA
+// #define DEBS
 // =====================
 
 // Disconnect supply when profiling
 // Connect P1.5 to the short-circuiting gate to actually disconnect
-#define DISCONNECT_SUPPLY_PROFILING
+// #define DISCONNECT_SUPPLY_PROFILING
 
 #define COMPARATOR_DELAY            __delay_cycles(240)
-#define ADC_HIGH_RD_CORRECT         35
+// #define ADC_HIGH_RD_CORRECT         35
 
 #ifdef OPTA
 
@@ -129,8 +129,8 @@ uint8_t adc_to_threshold[63] = {
 #include "radio/msp_nrf24.h"
 
 
-// #define DEBUG_GPIO
-// #define DEBUG_UART
+#define DEBUG_GPIO
+#define DEBUG_UART
 // #define DEBUG_COMPLETION_INDICATOR
 #define DEBUG_TASK_INDICATOR
 
