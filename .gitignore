@@ -5,3 +5,4 @@
 /test
 /results
 /scripts/process_profiling_results/*.txt
+/scripts/temp.py

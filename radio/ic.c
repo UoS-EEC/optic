@@ -538,6 +538,9 @@ void atom_func_start(uint8_t func_id) {
         P3IES &= ~BIT0;     // Detect rising edge next
         // Sleep and wait for energy refills...
         ENABLE_EXTCOMP_INTERRUPT;
+#ifdef  DEBUG_GPIO
+        P1OUT |= BIT4;      // Debug
+#endif
         __low_power_mode_3();
         __nop();
         // ... Wake from the ISR when adapt_threshold is hit
@@ -678,6 +681,9 @@ void atom_func_start(uint8_t func_id) {
         P3IES &= ~BIT0;         // Detect rising edge next
         // Sleep and wait for energy refills...
         ENABLE_EXTCOMP_INTERRUPT;
+#ifdef  DEBUG_GPIO
+        P1OUT |= BIT4;      // Debug
+#endif
         __low_power_mode_3();
         __nop();
         // ... Wake from the ISR when adapt_threshold is hit

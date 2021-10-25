@@ -30,7 +30,6 @@
 #define DISCONNECT_SUPPLY_PROFILING
 
 #define COMPARATOR_DELAY            __delay_cycles(240)
-#define ADC_HIGH_RD_CORRECT         35
 
 #ifdef OPTA
 
@@ -116,7 +115,7 @@ uint8_t adc_to_threshold[63] = {
 
 #define DEFAULT_HI_THRESHOLD        36      // See table
 #define DEFAULT_LO_THRESHOLD        113     // See table
-#define PROFILING_THRESHOLD         36      // See table
+#define PROFILING_THRESHOLD         36      // Useless but only for dummy init
 #define V_EXE_HISTORY_SIZE          10
 
 #else
@@ -124,10 +123,11 @@ uint8_t adc_to_threshold[63] = {
 #endif
 
 
-#define DEBUG_GPIO
+// #define DEBUG_GPIO
 #define DEBUG_UART
 // #define DEBUG_COMPLETION_INDICATOR
 #define DEBUG_TASK_INDICATOR
+// #define DEBUG_ADC_INDICATOR
 
 
 #endif  // OPTA_CONFIG_H_
