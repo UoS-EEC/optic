@@ -46,6 +46,7 @@ void radio_tx_payload(uint8_t* payload) {
 
     /*** Power down ***/
     nrf24_wr_reg(RF24_CONFIG, RF24_EN_CRC);
+    __delay_cycles(800);
     atom_func_end(RADIO_TX_PAYLOAD);
 }
 

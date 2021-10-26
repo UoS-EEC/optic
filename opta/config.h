@@ -21,15 +21,15 @@
 
 // =====================
 // !!! Choose one !!!
-// #define OPTA
-#define DEBS
+#define OPTA
+// #define DEBS
 // =====================
 
 // Disconnect supply when profiling
 // Connect P1.5 to the short-circuiting gate to actually disconnect
-#define DISCONNECT_SUPPLY_PROFILING
+// #define DISCONNECT_SUPPLY_PROFILING
 
-#define COMPARATOR_DELAY            __delay_cycles(240)
+#define COMPARATOR_DELAY            __delay_cycles(280)     // 35us
 
 #ifdef OPTA
 

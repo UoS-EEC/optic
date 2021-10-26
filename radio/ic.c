@@ -231,8 +231,8 @@ static void gpio_init(void) {
     P1DIR = 0xff;
     P2OUT = 0;
     P2DIR = 0xff;
-    // P3OUT = 0;
-    // P3DIR = 0xff;
+    P3OUT = 0;
+    P3DIR = 0xff;
     P4OUT = 0;
     P4DIR = 0xff;
     P5OUT = 0;
@@ -248,43 +248,47 @@ static void gpio_init(void) {
 }
 
 static void adc12_init(void) {
+    ADC12CTL0 &= ~ADC12ENC;     // Stop conversion
+    ADC12CTL0 &= ~ADC12ON;      // Turn off
+
+    // Turning on REF makes ADC reading ~50us faster
+    // ..but draw ~20uA more quiescent current
+    // while (REFCTL0 & REFGENBUSY) {}
+    // REFCTL0 = REFVSEL_1 |
+    //           REFON_1;          // REF ON
+    REFCTL0 = REFVSEL_1;        // 2.0V reference
+
     // Configure ADC12
-    ADC12CTL0 = ADC12SHT0_2 |   // 16 cycles sample and hold time
-                ADC12ON;        // ADC12 on
+    ADC12CTL0 = ADC12SHT0_0;
     ADC12CTL1 = ADC12PDIV_1 |   // Predivide by 4, from ~4.8MHz MODOSC
                 ADC12SHP;       // SAMPCON is from the sampling timer
     ADC12CTL2 = ADC12RES_2  |   // Default 12-bit conversion results
-                                // ..and 14cycles conversion time
+                                // ..and 14 cycles conversion time
                 ADC12PWRMD_1;   // Low-power mode
 
-    // Use P3.0
-    // P3SEL1 |= BIT0;
-    // P3SEL0 |= BIT0;
-    // ADC12MCTL0 = ADC12INCH_12|          // Select ch A12 at P3.0
-    //              ADC12VRSEL_1;          // VR+ = VREF buffered, VR- = Vss
-
-    // Use P3.1
-    P3SEL1 |= BIT1;
-    P3SEL0 |= BIT1;
-    ADC12MCTL0 = ADC12INCH_13|          // Select ch A13 at P3.1
+    // Use internal 1/2AVcc channel
+    ADC12CTL3 = ADC12BATMAP;
+    ADC12MCTL0 = ADC12INCH_31|          // Select ch A31
                  ADC12VRSEL_1;          // VR+ = VREF buffered, VR- = Vss
 
-    // Set up internal Vref
-    // Make ADC reading ~50us (~80us to ~30us) faster
-    // ..but draw ~20uA more quiescent current
-    // while (REFCTL0 & REFGENBUSY) {}
-    // REFCTL0 = REFVSEL_0 | REFON_1;      // Select internal Vref (VR+) = 1.2V (default), REF ON
-    // while (!(REFCTL0 & REFBGRDY)) {}    // Wait for reference generator to settle
+    // Use P3.1
+    // P3SEL1 |= BIT1;
+    // P3SEL0 |= BIT1;
+    // ADC12MCTL0 = ADC12INCH_13|          // Select ch A13 at P3.1
+    //              ADC12VRSEL_1;          // VR+ = VREF buffered, VR- = Vss
+
+    // while (!(REFCTL0 & REFGENRDY)) {}    // Wait for reference generator to settle
+    ADC12CTL0 |= ADC12ON;
 }
 
-// Take ~82us
+// Take ~70us
 static uint16_t sample_vcc(void) {
-#ifdef DEBUG_GPIO
+#ifdef DEBUG_ADC_INDICATOR
     P8OUT |= BIT0;
 #endif
     ADC12CTL0 |= ADC12ENC | ADC12SC;    // Start sampling & conversion
     while (!(ADC12IFGR0 & BIT0)) {}
-#ifdef DEBUG_GPIO
+#ifdef DEBUG_ADC_INDICATOR
     P8OUT &= ~BIT0;
 #endif
     return ADC12MEM0;
@@ -450,6 +454,7 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
     nrf24_spi_init();
     nrf24_ce_irq_pins_init();
     PM5CTL0 &= ~LOCKLPM5;       // Disable GPIO power-on default high-impedance mode
+
     is_storing_energy = FALSE;
     set_threshold(DEFAULT_HI_THRESHOLD);
     ENABLE_EXTCOMP_INTERRUPT;
@@ -717,24 +722,16 @@ void atom_func_end(uint8_t func_id) {
 #endif
 
     // *** Discharging cycle ends ***
+    // Take a Vcc reading, get Delta V_exe
+    adc_r1 = sample_vcc();
 #ifdef DISCONNECT_SUPPLY_PROFILING
     P1OUT &= ~BIT5;     // Reconnect supply
 #endif
-    // Take a Vcc reading, get Delta V_exe
-    adc_r1 = sample_vcc();
     d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
-
-    // atom_state[func_id].v_exe_mean -= atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
-    // atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] = (uint16_t) d_v_discharge;
-    // atom_state[func_id].v_exe_mean += atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] / V_EXE_HISTORY_SIZE;
-    // if (++atom_state[func_id].v_exe_hist_index == V_EXE_HISTORY_SIZE) {
-    //     atom_state[func_id].v_exe_hist_index = 0;
-    // }
 
 #ifdef DEBUG_UART
     // UART debug info
     char str_buffer[20];
-    // uart_send_str(uitoa_10(atom_state[func_id].v_exe_mean, str_buffer));
     uart_send_str(uitoa_10(d_v_discharge, str_buffer));
     // uart_send_str(" ");
     // uart_send_str(uitoa_10((uint16_t)adc_r2, str_buffer));
