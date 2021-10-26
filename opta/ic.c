@@ -2,15 +2,18 @@
 // All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#include <msp430fr5994.h>
 #include "opta/ic.h"
+
+#include <msp430fr5994.h>
+#include <stdbool.h>
+#include <stddef.h>
+
 #include "opta/config.h"
 
 
-#define TRUE    1
-#define FALSE   0
 #define ENABLE_EXTCOMP_INTERRUPT    P3IE |= BIT0
 #define DISABLE_EXTCOMP_INTERRUPT   P3IE &= ~BIT0
+#define __low_power_mode_3_on_exit()    __bis_SR_register_on_exit(LPM3_bits | GIE)
 
 extern uint8_t __datastart, __dataend, __romdatastart;  // , __romdatacopysize;
 extern uint8_t __bootstackend;
@@ -24,7 +27,7 @@ typedef struct AtomFuncState_s {
     // check_fail:
     // Set at function entry, reset at exit,
     // ..so read as '1' at the entry means the function failed before
-    uint8_t check_fail;
+    bool check_fail;
 
     // Adaptive threshold
     uint8_t  adapt_threshold;   // Init: PROFILING_THRESHOLD
@@ -47,9 +50,10 @@ AtomFuncState PERSISTENT atom_state[ATOM_FUNC_NUM];
 // uint8_t PERSISTENT heap_snapshot[HEAP_SIZE];
 
 // Control signals
-uint8_t PERSISTENT snapshot_valid = 0;
-uint8_t PERSISTENT suspending;          // From backup: 1, from restore: 0
-uint8_t is_storing_energy;              // Comparator control flag
+bool PERSISTENT snapshot_valid = false;
+bool PERSISTENT suspending = false;          // From backup: 1, from restore: 0
+bool profiling;     // A profiling state indicator
+                    // ..redundant but makes the code clearer
 
 // Profiling parameters
 uint16_t adc_r1;
@@ -143,8 +147,8 @@ fastmemcpy(uint8_t *dst, uint8_t *src, size_t len) {
 //     dst = (uint8_t *)&stack_snapshot[offset];
 //     fastmemcpy(dst, src, len);
 
-//     snapshot_valid = 1;  // For now, don't check snapshot valid
-//     suspending = 1;
+//     snapshot_valid = true;  // For now, don't check snapshot valid
+//     suspending = true;
 // }
 
 // static void restore(void) {
@@ -153,13 +157,13 @@ fastmemcpy(uint8_t *dst, uint8_t *src, size_t len) {
 //     static uint8_t *dst __attribute__((section(".boot_stack")));
 //     static size_t len __attribute__((section(".boot_stack")));
 
-//     snapshot_valid = 0;
-//     /* comment "snapshot_valid = 0"
+//     snapshot_valid = false;
+//     /* comment "snapshot_valid = false"
 //        for being able to restore from an old snapshot
 //        if backup() fails to complete
 //        Here, introducing code re-execution? */
 
-//     suspending = 0;
+//     suspending = false;
 
 //     // data
 //     dst = &__datastart;
@@ -350,14 +354,12 @@ void __attribute__((interrupt(PORT3_VECTOR))) Port3_ISR(void) {
         case P3IV__NONE:    break;          // Vector  0:  No interrupt
         case P3IV__P3IFG0:                  // Vector  2:  P3.0 interrupt flag
             if (P3IES & BIT0) {     // Falling edge, low threshold hit
-                if (!is_storing_energy) {
-                    set_threshold(DEFAULT_HI_THRESHOLD);
-                }
+                set_threshold(DEFAULT_HI_THRESHOLD);
                 P3IES &= ~BIT0;     // Detect rising edge next
 #ifdef  DEBUG_GPIO
                 P1OUT |= BIT4;      // Debug
 #endif
-                __low_power_mode_3();
+                __low_power_mode_3_on_exit();
             } else {                // Rising edge, high threshold hit
                 set_threshold(DEFAULT_LO_THRESHOLD);
                 P3IES |= BIT0;      // Detect falling edge next
@@ -452,7 +454,6 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
 #endif
     PM5CTL0 &= ~LOCKLPM5;       // Disable GPIO power-on default high-impedance mode
 
-    is_storing_energy = FALSE;
     set_threshold(DEFAULT_HI_THRESHOLD);
     ENABLE_EXTCOMP_INTERRUPT;
 #ifdef  DEBUG_GPIO
@@ -478,7 +479,7 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
         // Does not return here!!!
         // Return to the next line of backup()...
     } else {
-        // snapshot_valid = 0 when
+        // snapshot_valid = false when
         // ..previous snapshot failed or 1st boot (both rare)
         // Normal boot...
 
@@ -488,7 +489,7 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
             atom_state[i].v_exe_hist_index = 0;
             // atom_state[i].v_exe_mean = 0;
         }
-        snapshot_valid = 1;  // Temporary line, make sure atom_state init only once
+        snapshot_valid = true;  // Temporary line, make sure atom_state init only once
     }
 
     // Load .data to RAM
@@ -505,7 +506,6 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
 
 void atom_func_start(uint8_t func_id) {
     DISABLE_EXTCOMP_INTERRUPT;
-    is_storing_energy = TRUE;
 
 #ifdef DEBUG_GPIO
     P7OUT |= BIT0;      // Indicate overhead
@@ -513,7 +513,7 @@ void atom_func_start(uint8_t func_id) {
 
     // If the task failed before, reset the profiling
     if (atom_state[func_id].check_fail) {
-        atom_state[func_id].check_fail = FALSE;
+        atom_state[func_id].check_fail = false;
         atom_state[func_id].adapt_threshold += 2;   // Increase threshold by ~50mV
         // atom_state[func_id].v_exe_hist_index = 0;   // Restart the profiling hist
     }
@@ -524,54 +524,58 @@ void atom_func_start(uint8_t func_id) {
     set_threshold(PROFILING_THRESHOLD);
     COMPARATOR_DELAY;
     if (P3IN & BIT0) {          // Enough energy
+        profiling = false;
         set_threshold(DEFAULT_LO_THRESHOLD);
-        timer_cnt1 = 0;
-        timer_cnt2 = 0;
     } else {                    // Not enough energy
+        profiling = true;
         // Take a Vcc reading
         // P3.0 interrupt preempted by this, so we have to manually sleep later
         adc_r1 = sample_vcc();
         // Clear and start Timer A0
         TA0CTL = TASSEL__ACLK | MC__CONTINUOUS | TACLR;
 #ifdef DEBUG_GPIO
-        P7OUT &= ~BIT0;     // Indicate overhead
+        P7OUT &= ~BIT0;         // Indicate overhead
 #endif
-        P3IFG &= ~BIT0;     // Clear pending high-to-low interrupt
-        P3IES &= ~BIT0;     // Detect rising edge next
-        // Sleep and wait for energy refills...
+        P3IFG &= ~BIT0;         // Clear pending falling edge interrupt
+        P3IES &= ~BIT0;         // Detect rising edge next
         ENABLE_EXTCOMP_INTERRUPT;
 #ifdef  DEBUG_GPIO
-        P1OUT |= BIT4;      // Debug
+        P1OUT |= BIT4;          // Debug
 #endif
+        // Sleep and wait for energy refills...
         __low_power_mode_3();
         __nop();
-        // ... Wake from the ISR when adapt_threshold is hit
+        // ...Wake from the ISR when adapt_threshold is hit
         DISABLE_EXTCOMP_INTERRUPT;
 
         // *** Charging cycle ends, discharging cycle starts ***
 #ifdef DEBUG_GPIO
-        P7OUT |= BIT0;      // Indicate overhead
+        P7OUT |= BIT0;          // Indicate overhead
 #endif
-        // Take a time reading, get T_charge
-        timer_cnt1 = TA0R;          // T_charge
-        // Don't profile if charging time is too short
+        timer_cnt1 = TA0R;      // Take a time reading, get T_charge
+        // Check if charging time is too short
         if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {
+            // Continue profiling
             // Take a Vcc reading, get Delta V_charge
             adc_r2 = sample_vcc();
             d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
+        } else {
+            // Charging time too short, stop profiling
+            profiling = false;
+            TA0CTL &= ~MC;      // Stop Timer A0
         }
     }
-    atom_state[func_id].check_fail = TRUE;
+    atom_state[func_id].check_fail = true;
 #ifdef DEBUG_GPIO
-    P7OUT &= ~BIT0;     // Indicate overhead
+    P7OUT &= ~BIT0;             // Indicate overhead
 #endif
 #ifdef DISCONNECT_SUPPLY_PROFILING
     P1OUT |= BIT5;              // Disconnect supply, only valid when P1.5 is connected
 #endif
 #ifdef DEBUG_TASK_INDICATOR
-    P1OUT |= BIT0;      // Debug
+    P1OUT |= BIT0;              // Debug
 #endif
-    // Run the atomic function...
+    // Atomic function starts...
 }
 
 void atom_func_end(uint8_t func_id) {
@@ -590,31 +594,28 @@ void atom_func_end(uint8_t func_id) {
 #endif
     // *** Discharging cycle ends ***
 #ifdef DEBUG_GPIO
-    P7OUT |= BIT0;      // Indicate overhead
+    P7OUT |= BIT0;              // Indicate overhead
 #endif
     // Succefully complete, clear the check_fail flag
-    atom_state[func_id].check_fail = FALSE;
-    // If target end threshold is not met, though didn't die
+    atom_state[func_id].check_fail = false;
+    // If target end threshold is violated, though didn't die (1.8V < Vcc < Vtarget_end)
     if ((P3IN & BIT0) == 0) {
         atom_state[func_id].adapt_threshold += 2;
         // atom_state[func_id].v_exe_hist_index = 0;
+        profiling = false;
     }
 
-    TA0CTL &= ~MC;  // Stop Timer A0
-    // Don't profile if charging time is too short
-    if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {
-        // Take a time reading, get T_exe
-        timer_cnt2 = TA0R - timer_cnt1;
-        // Take a Vcc reading, get Delta V_exe
-        adc_r1 = sample_vcc();
+    if (profiling) {
+        TA0CTL &= ~MC;                      // Stop Timer A0
+        timer_cnt2 = TA0R - timer_cnt1;     // Take a time reading, get T_exe
+        adc_r1 = sample_vcc();              // Take a Vcc reading, get Delta V_exe
         d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
         // Calculate the actual voltage drop (integer method)
         v_exe = (uint16_t) ((((timer_cnt2 * 0x100) / timer_cnt1) * d_v_charge +
                             (d_v_discharge * 0x100)) / 0x100);
 
-        if (v_exe < MAX_ADC_READING) {  // Discard illegal results
+        if (v_exe < MAX_ADC_READING) {      // Discard illegal results >= MAX_ADC_READING
             atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] = v_exe;
-
 #ifdef DEBUG_UART
             // UART debug info
             char str_buffer[20];
@@ -624,9 +625,8 @@ void atom_func_end(uint8_t func_id) {
             // uart_send_str(uitoa_10(timer_cnt2, str_buffer));
             uart_send_str("\n\r");
 #endif
-
             if (++atom_state[func_id].v_exe_hist_index == V_EXE_HISTORY_SIZE) {
-                atom_state[func_id].v_exe_hist_index = 0;   // Reset index
+                atom_state[func_id].v_exe_hist_index = 0;
 
                 // Calculate v_exe_mean
                 uint32_t v_exe_mean = 0;
@@ -638,8 +638,8 @@ void atom_func_end(uint8_t func_id) {
                 // Adapt the next threshold
                 atom_state[func_id].adapt_threshold = (uint8_t) (v_exe_mean / ADC_STEP);
                 // Prevent illegal values
-                if (atom_state[func_id].adapt_threshold >= THRESHOLD_TABLE_MAX_INDEX) {
-                    atom_state[func_id].adapt_threshold = THRESHOLD_TABLE_MAX_INDEX - 1;
+                if (atom_state[func_id].adapt_threshold > THRESHOLD_TABLE_MAX_INDEX) {
+                    atom_state[func_id].adapt_threshold = THRESHOLD_TABLE_MAX_INDEX;
                 }
 #ifdef DEBUG_UART
                 // UART debug info
@@ -653,12 +653,10 @@ void atom_func_end(uint8_t func_id) {
         }
     }
 
-    // Prevent fake interrupt
-    if (P3IN & BIT0) {          // Enough budget
+    // Prevent fake interrupt when Vcc > Vtarget_end here
+    if (P3IN & BIT0) {
         P3IFG &= ~BIT0;
     }
-
-    is_storing_energy = FALSE;
 #ifdef DEBUG_GPIO
     P7OUT &= ~BIT0;     // Indicate overhead
 #endif
@@ -670,7 +668,6 @@ void atom_func_end(uint8_t func_id) {
 
 void atom_func_start(uint8_t func_id) {
     DISABLE_EXTCOMP_INTERRUPT;
-    is_storing_energy = TRUE;
 
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
@@ -741,7 +738,6 @@ void atom_func_end(uint8_t func_id) {
         P3IFG &= ~BIT0;
     }
 
-    is_storing_energy = FALSE;
     ENABLE_EXTCOMP_INTERRUPT;
 }
 
@@ -790,13 +786,11 @@ void atom_func_start_linear(uint8_t func_id, uint16_t param) {
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
     // Sleep and wait for energy recharged
-    is_storing_energy = 1;
     uint8_t temp = (uint8_t) (y_curr / UNIT_COMPE_ADC + 1 + TARGET_END_THRESHOLD);
     if (temp > 31) temp = 31;
     set_CEREF1(temp);
     COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
     set_CEREF1(TARGET_END_THRESHOLD);
-    is_storing_energy = 0;
 
     // *** Charging cycle ends, discharging cycle starts ***
     CEINT &= ~CEIIE;

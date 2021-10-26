@@ -6,7 +6,6 @@
 #define OPTA_IC_H_
 
 #include <stdint.h>
-#include <stddef.h>
 
 void atom_func_start(uint8_t func_id);
 void atom_func_end(uint8_t func_id);
