@@ -10,7 +10,7 @@
 n_arr = []
 v_arr = []
 
-# Setting
+# Settings
 v_ref_typ = 0.4             # 400mV typical reference, rising edge
 v_ref_hys = 0.0065          # 6.5mV hysteresis, take a mean for correction
 v_ref_offset = -0.003       # Offset (error), based on actual threshold
@@ -71,7 +71,7 @@ for i in range(len(thresholds)):
 
 print("\n// Target end threshold: %d" % thresholds[0], "Voltage: %.3f V" % v_arr[thresholds[0]])
 print("// Threshold convert table:")
-print("adc_to_threshold[%d] = {" % (len(thresholds) - 1))
+print("uint8_t adc_to_threshold[%d] = {" % (len(thresholds) - 1))
 
 for i in range(1, len(thresholds)):
     print("    %d,     // %3d, %.3fV" % (thresholds[i], i - 1, v_arr[thresholds[i]]))

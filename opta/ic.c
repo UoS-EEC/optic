@@ -24,7 +24,7 @@ extern uint8_t __stack, __stackend;
 #define PERSISTENT __attribute__((section(".persistent")))
 
 typedef struct AtomFuncState_s {
-    // check_fail:
+    // Check_fail:
     // Set at function entry, reset at exit,
     // ..so read as '1' at the entry means the function failed before
     bool check_fail;
@@ -34,7 +34,6 @@ typedef struct AtomFuncState_s {
     // Profiling variables
     uint16_t v_exe_history[V_EXE_HISTORY_SIZE];
     uint8_t  v_exe_hist_index;  // Init: 0
-    // uint16_t v_exe_mean;        // Init: 0
 } AtomFuncState;
 
 AtomFuncState PERSISTENT atom_state[ATOM_FUNC_NUM];
@@ -455,15 +454,18 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
     PM5CTL0 &= ~LOCKLPM5;       // Disable GPIO power-on default high-impedance mode
 
     set_threshold(DEFAULT_HI_THRESHOLD);
-    ENABLE_EXTCOMP_INTERRUPT;
+    COMPARATOR_DELAY;
+    if (!(P3IN & BIT0)) {
+        P3IFG &= ~BIT0;         // Prevent fake interrupt
+        ENABLE_EXTCOMP_INTERRUPT;
 #ifdef  DEBUG_GPIO
-    P1OUT |= BIT4;  // Debug
+        P1OUT |= BIT4;          // Debug
 #endif
-    __low_power_mode_4();       // Enter LPM4 with interrupts enabled
-    // Processor sleeps
-    // ...
-    // Processor wakes up after interrupt (Hi V threshold hit)
-
+        __low_power_mode_4();   // Enter LPM4 with interrupts enabled
+        // Processor sleeps
+        // ...
+        // Processor wakes up after interrupt (Hi V threshold hit)
+    }
 
     // Boot functions that are mapped to ram (most importantly fastmemcpy)
     uint8_t *dst = &__ramtext_low;
@@ -473,6 +475,7 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
         *dst++ = *src++;
     }
 
+#ifdef OPTA
     if (snapshot_valid) {
         // P1OUT |= BIT5;  // Debug, restore() starts
         // restore();
@@ -491,6 +494,7 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
         }
         snapshot_valid = true;  // Temporary line, make sure atom_state init only once
     }
+#endif
 
     // Load .data to RAM
     fastmemcpy(&__datastart, &__romdatastart, &__dataend - &__datastart);
@@ -520,8 +524,8 @@ void atom_func_start(uint8_t func_id) {
 
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
-    // set_threshold(adc_to_threshold[atom_state[func_id].adapt_threshold]);
-    set_threshold(PROFILING_THRESHOLD);
+    set_threshold(adc_to_threshold[atom_state[func_id].adapt_threshold]);
+    // set_threshold(FIXED_THRESHOLD);
     COMPARATOR_DELAY;
     if (P3IN & BIT0) {          // Enough energy
         profiling = false;
@@ -620,6 +624,7 @@ void atom_func_end(uint8_t func_id) {
             // UART debug info
             char str_buffer[20];
             uart_send_str(uitoa_10(v_exe, str_buffer));
+            // uart_send_str(" ");
             // uart_send_str(uitoa_10(timer_cnt1, str_buffer));
             // uart_send_str(" ");
             // uart_send_str(uitoa_10(timer_cnt2, str_buffer));
@@ -641,22 +646,11 @@ void atom_func_end(uint8_t func_id) {
                 if (atom_state[func_id].adapt_threshold > THRESHOLD_TABLE_MAX_INDEX) {
                     atom_state[func_id].adapt_threshold = THRESHOLD_TABLE_MAX_INDEX;
                 }
-#ifdef DEBUG_UART
-                // UART debug info
-                // char str_buffer[20];
-                uart_send_str("mean: ");
-                uart_send_str(uitoa_10(v_exe_mean, str_buffer));
-                // uart_send_str(uitoa_10(atom_state[func_id].adapt_threshold, str_buffer));
-                uart_send_str("\n\r");
-#endif
             }
         }
     }
 
-    // Prevent fake interrupt when Vcc > Vtarget_end here
-    if (P3IN & BIT0) {
-        P3IFG &= ~BIT0;
-    }
+    if (P3IN & BIT0) P3IFG &= ~BIT0;  // Prevent fake interrupt when Vcc > Vtarget_end here
 #ifdef DEBUG_GPIO
     P7OUT &= ~BIT0;     // Indicate overhead
 #endif
@@ -727,17 +721,13 @@ void atom_func_end(uint8_t func_id) {
     // UART debug info
     char str_buffer[20];
     uart_send_str(uitoa_10(d_v_discharge, str_buffer));
-    // uart_send_str(" ");
-    // uart_send_str(uitoa_10((uint16_t)adc_r2, str_buffer));
-    // uart_send_str(" ");
-    // uart_send_str(uitoa_10((uint16_t)adc_r1, str_buffer));
+    uart_send_str(" ");
+    uart_send_str(uitoa_10((uint16_t)adc_r2, str_buffer));
+    uart_send_str(" ");
+    uart_send_str(uitoa_10((uint16_t)adc_r1, str_buffer));
     uart_send_str("\n\r");
 #endif
-    // Prevent fake interrupt
-    if (P3IN & BIT0) {          // Enough budget
-        P3IFG &= ~BIT0;
-    }
-
+    if (P3IN & BIT0) P3IFG &= ~BIT0;  // Prevent fake interrupt when Vcc > Vtarget_end here
     ENABLE_EXTCOMP_INTERRUPT;
 }
 

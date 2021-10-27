@@ -5,6 +5,8 @@
 #ifndef OPTA_CONFIG_H_
 #define OPTA_CONFIG_H_
 
+#include <stdint.h>         // For uint8__t type
+
 #define TRACK_STACK
 
 // Indicating the maximum size of each FRAM snapshot
@@ -33,16 +35,18 @@
 
 #ifdef OPTA
 
-#define DEFAULT_HI_THRESHOLD        54      // See table below
-#define DEFAULT_LO_THRESHOLD        96      // Should be just above 2V
+#define DEFAULT_HI_THRESHOLD        65      // Value from threshold table
+#define DEFAULT_LO_THRESHOLD        96      // Value from threshold table
+                                            // Should be just above 2V
                                             // otherwise our ADC doesn't work
-#define PROFILING_THRESHOLD         36      // See table below
+#define PROFILING_THRESHOLD         31      // Index from threshold table
+#define FIXED_THRESHOLD             35      // Used in test
 #define THRESHOLD_TABLE_MAX_INDEX   50
 #define ADC_STEP                    32
 
 // Target end threshold: 96 Voltage: 2.005 V
 // Threshold convert table:
-adc_to_threshold[51] = {
+uint8_t adc_to_threshold[51] = {
     93,     //   0, 2.038V
     90,     //   1, 2.072V
     88,     //   2, 2.096V
@@ -97,16 +101,15 @@ adc_to_threshold[51] = {
 };
 
 #define MIN_PROFILING_TIMER_CNT     4
-#define V_EXE_HISTORY_SIZE          5
+#define V_EXE_HISTORY_SIZE          3
 
 #define LINEAR_ADAPT_COEFFICIENT    4
 
 #elif defined(DEBS)
 
-#define DEFAULT_HI_THRESHOLD        36      // See table above
-#define DEFAULT_LO_THRESHOLD        96     // See table above
-#define PROFILING_THRESHOLD         36      // Useless but only for dummy init
-#define V_EXE_HISTORY_SIZE          10
+#define DEFAULT_HI_THRESHOLD        54      // See table above
+#define DEFAULT_LO_THRESHOLD        96      // See table above
+#define V_EXE_HISTORY_SIZE          5
 
 #else
 #error Specify a method between OPTA and DEBS!
@@ -114,7 +117,7 @@ adc_to_threshold[51] = {
 
 
 // #define DEBUG_GPIO
-#define DEBUG_UART
+// #define DEBUG_UART
 // #define DEBUG_COMPLETION_INDICATOR
 #define DEBUG_TASK_INDICATOR
 // #define DEBUG_ADC_INDICATOR
