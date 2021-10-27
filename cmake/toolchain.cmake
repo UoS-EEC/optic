@@ -20,8 +20,6 @@ set(CMAKE_CXX_COMPIER ${TC-GXX} CACHE INTERNAL "")
 set(CMAKE_C_COMPILER_WORKS 1 CACHE INTERNAL "")
 set(CMAKE_CXX_COMPILER_WORKS 1 CACHE INTERNAL "")
 
-set(CMAKE_BUILD_TYPE Debug CACHE STRING "Debug type by default")
-
 function(add_upload EXECUTABLE)
   add_custom_target(upload_${EXECUTABLE}
     COMMAND ${MSPDEBUG} tilib -d ${USB_PORT} "prog ${EXECUTABLE}.elf"
