@@ -21,9 +21,9 @@
 #define UNIT_COMPE_ADC  128
 
 
-// Disconnect supply when profiling
-// Connect P1.5 to the short-circuiting gate to actually disconnect
-// #define DISCONNECT_SUPPLY_PROFILING
+#define PROFILING           // Whether profiling
+#define DISCONNECT_SUPPLY_PROFILING     // Whether disconnect supply when profiling
+                                        // Connect P1.5 to the short-circuiting gate to actually disconnect
 
 #define COMPARATOR_DELAY            __delay_cycles(280)     // 35us
 

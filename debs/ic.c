@@ -491,9 +491,10 @@ void atom_func_start(uint8_t func_id) {
 #ifdef DISCONNECT_SUPPLY_PROFILING
     P1OUT |= BIT5;      // Disconnect supply
 #endif
+#ifdef PROFILING
     // Take a Vcc reading, get Delta V_charge
     adc_r2 = sample_vcc();
-
+#endif
     // Run the atomic function...
 #ifdef DEBUG_TASK_INDICATOR
     P1OUT |= BIT0;  // Debug
@@ -505,21 +506,21 @@ void atom_func_end(uint8_t func_id) {
 #ifdef DEBUG_TASK_INDICATOR
     P1OUT &= ~BIT0;
 #endif
-
 #ifdef DEBUG_COMPLETION_INDICATOR
     // Indicate completion
     P7OUT |= BIT1;
     __delay_cycles(0xF);
     P7OUT &= ~BIT1;
 #endif
-
     // *** Discharging cycle ends ***
+#ifdef PROFILING
     // Take a Vcc reading, get Delta V_exe
     adc_r1 = sample_vcc();
+    d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
+#endif
 #ifdef DISCONNECT_SUPPLY_PROFILING
     P1OUT &= ~BIT5;     // Reconnect supply
 #endif
-    d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
 
 #ifdef DEBUG_UART
     // UART debug info
