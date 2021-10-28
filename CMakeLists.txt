@@ -21,6 +21,7 @@ include_directories(
     ${MSP430_GCC_DIR}/include
 )
 
+add_subdirectory(debs)
 add_subdirectory(opta)
 add_subdirectory(dma)
 add_subdirectory(aes)

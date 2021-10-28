@@ -2,10 +2,15 @@
 // All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#include <msp430fr5994.h>
 #include "aes/aesa.h"
-
+#include <msp430fr5994.h>
+#ifdef OPTA
 #include "opta/ic.h"
+#elif defined(DEBS)
+#include "debs/ic.h"
+#else
+#error Specify a method.
+#endif
 
 // AES accelerator, cipher block chain mode
 

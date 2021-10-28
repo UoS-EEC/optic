@@ -2,10 +2,15 @@
 // All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#include <msp430fr5994.h>
 #include "dma/dma.h"
-
+#include <msp430fr5994.h>
+#ifdef OPTA
 #include "opta/ic.h"
+#elif defined(DEBS)
+#include "debs/ic.h"
+#else
+#error Specify a method.
+#endif
 
 void dma(uint8_t* src, uint8_t* dst, uint16_t sz) {
     atom_func_start(DMA);

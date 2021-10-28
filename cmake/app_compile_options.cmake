@@ -18,6 +18,19 @@ target_compile_options(
     PRIVATE -ffunction-sections             # Separate code into translation units
 )
 
+IF(${METHOD} STREQUAL "opta")
+    target_compile_definitions(
+        ${TARGET_NAME}
+        PUBLIC OPTA
+    )
+ELSEIF(${METHOD} STREQUAL "debs")
+    target_compile_definitions(
+        ${TARGET_NAME}
+        PUBLIC DEBS
+    )
+ENDIF()
+
+
 # linker
 target_link_directories(
     ${TARGET_NAME} 

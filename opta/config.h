@@ -21,19 +21,12 @@
 #define UNIT_COMPE_ADC  128
 
 
-// =====================
-// !!! Choose one !!!
-#define OPTA
-// #define DEBS
-// =====================
 
 // Disconnect supply when profiling
 // Connect P1.5 to the short-circuiting gate to actually disconnect
 // #define DISCONNECT_SUPPLY_PROFILING
 
 #define COMPARATOR_DELAY            __delay_cycles(280)     // 35us
-
-#ifdef OPTA
 
 #define DEFAULT_HI_THRESHOLD        65      // Value from threshold table
 #define DEFAULT_LO_THRESHOLD        96      // Value from threshold table
@@ -103,16 +96,9 @@ uint8_t adc_to_threshold[51] = {
 #define MIN_PROFILING_TIMER_CNT     4
 #define V_EXE_HISTORY_SIZE          3
 
+// #define LINEAR_ADAPTATION
+#ifdef LINEAR_ADAPTATION
 #define LINEAR_ADAPT_COEFFICIENT    4
-
-#elif defined(DEBS)
-
-#define DEFAULT_HI_THRESHOLD        54      // See table above
-#define DEFAULT_LO_THRESHOLD        96      // See table above
-#define V_EXE_HISTORY_SIZE          5
-
-#else
-#error Specify a method between OPTA and DEBS!
 #endif
 
 
