@@ -32,8 +32,13 @@ typedef struct AtomFuncState_s {
     // Adaptive threshold
     uint8_t  adapt_threshold;   // Init: PROFILING_THRESHOLD
     // Profiling variables
+#ifdef V_EXE_HISTORY_SIZE
     uint16_t v_exe_history[V_EXE_HISTORY_SIZE];
     uint8_t  v_exe_hist_index;  // Init: 0
+#endif
+#ifdef DELAY_COUNTER
+    uint8_t delay_cnt;
+#endif
 } AtomFuncState;
 
 AtomFuncState PERSISTENT atom_state[ATOM_FUNC_NUM];
@@ -475,8 +480,7 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
         *dst++ = *src++;
     }
 
-#ifdef OPTA
-    if (snapshot_valid) {
+    if (snapshot_valid == true) {
         // P1OUT |= BIT5;  // Debug, restore() starts
         // restore();
         // Does not return here!!!
@@ -489,12 +493,16 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
         // Init atom_state
         for (uint8_t i = 0; i < ATOM_FUNC_NUM; i++) {
             atom_state[i].adapt_threshold = PROFILING_THRESHOLD;
+            atom_state[i].check_fail = false;
+#ifdef V_EXE_HISTORY_SIZE
             atom_state[i].v_exe_hist_index = 0;
-            // atom_state[i].v_exe_mean = 0;
+#endif
+#ifdef DELAY_COUNTER
+            atom_state[i].delay_cnt = 1;    // Profiling at the first rrun
+#endif
         }
         snapshot_valid = true;  // Temporary line, make sure atom_state init only once
     }
-#endif
 
     // Load .data to RAM
     fastmemcpy(&__datastart, &__romdatastart, &__dataend - &__datastart);
@@ -516,7 +524,6 @@ void atom_func_start(uint8_t func_id) {
     if (atom_state[func_id].check_fail) {
         atom_state[func_id].check_fail = false;
         atom_state[func_id].adapt_threshold += 2;   // Increase threshold by ~50mV
-        // atom_state[func_id].v_exe_hist_index = 0;   // Restart the profiling hist
     }
 
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
@@ -528,18 +535,27 @@ void atom_func_start(uint8_t func_id) {
         profiling = false;
         set_threshold(DEFAULT_LO_THRESHOLD);
     } else {                    // Not enough energy
+#ifdef DELAY_COUNTER
+        if (--atom_state[func_id].delay_cnt == 0) {
+            profiling = true;
+            atom_state[func_id].delay_cnt = DELAY_COUNTER;
+        }
+#else
         profiling = true;
-        // Take a Vcc reading
-        // P3.0 interrupt preempted by this, so we have to manually sleep later
-        adc_r1 = sample_vcc();
-        // Clear and start Timer A0
-        TA0CTL = TASSEL__ACLK | MC__CONTINUOUS | TACLR;
-#ifdef DEBUG_GPIO
-        P7OUT &= ~BIT0;         // Indicate overhead
 #endif
+        if (profiling) {
+            // Take a Vcc reading
+            // P3.0 interrupt preempted by this, so we have to manually sleep later
+            adc_r1 = sample_vcc();
+            // Clear and start Timer A0
+            TA0CTL = TASSEL__ACLK | MC__CONTINUOUS | TACLR;
+        }
         P3IFG &= ~BIT0;         // Clear pending falling edge interrupt
         P3IES &= ~BIT0;         // Detect rising edge next
         ENABLE_EXTCOMP_INTERRUPT;
+#ifdef DEBUG_GPIO
+        P7OUT &= ~BIT0;         // Indicate overhead
+#endif
 #ifdef  DEBUG_GPIO
         P1OUT |= BIT4;          // Debug
 #endif
@@ -553,17 +569,19 @@ void atom_func_start(uint8_t func_id) {
 #ifdef DEBUG_GPIO
         P7OUT |= BIT0;          // Indicate overhead
 #endif
-        timer_cnt1 = TA0R;      // Take a time reading, get T_charge
-        // Check if charging time is too short
-        if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {
-            // Continue profiling
-            // Take a Vcc reading, get Delta V_charge
-            adc_r2 = sample_vcc();
-            d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
-        } else {
-            // Charging time too short, stop profiling
-            profiling = false;
-            TA0CTL &= ~MC;      // Stop Timer A0
+        if (profiling) {
+            timer_cnt1 = TA0R;      // Take a time reading, get T_charge
+            // Check if charging time is too short
+            if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {
+                // Continue profiling
+                // Take a Vcc reading, get Delta V_charge
+                adc_r2 = sample_vcc();
+                d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
+            } else {
+                // Charging time too short, stop profiling
+                profiling = false;
+                TA0CTL &= ~MC;      // Stop Timer A0
+            }
         }
     }
     atom_state[func_id].check_fail = true;
@@ -602,7 +620,6 @@ void atom_func_end(uint8_t func_id) {
     // If target end threshold is violated, though didn't die (1.8V < Vcc < Vtarget_end)
     if ((P3IN & BIT0) == 0) {
         atom_state[func_id].adapt_threshold += 2;
-        // atom_state[func_id].v_exe_hist_index = 0;
         profiling = false;
     }
 
@@ -616,17 +633,8 @@ void atom_func_end(uint8_t func_id) {
                             (d_v_discharge * 0x100)) / 0x100);
 
         if (v_exe < MAX_ADC_READING) {      // Discard illegal results >= MAX_ADC_READING
+#ifdef V_EXE_HISTORY_SIZE
             atom_state[func_id].v_exe_history[atom_state[func_id].v_exe_hist_index] = v_exe;
-#ifdef DEBUG_UART
-            // UART debug info
-            char str_buffer[20];
-            uart_send_str(uitoa_10(v_exe, str_buffer));
-            // uart_send_str(" ");
-            // uart_send_str(uitoa_10(timer_cnt1, str_buffer));
-            // uart_send_str(" ");
-            // uart_send_str(uitoa_10(timer_cnt2, str_buffer));
-            uart_send_str("\n\r");
-#endif
             if (++atom_state[func_id].v_exe_hist_index == V_EXE_HISTORY_SIZE) {
                 atom_state[func_id].v_exe_hist_index = 0;
 
@@ -644,6 +652,24 @@ void atom_func_end(uint8_t func_id) {
                     atom_state[func_id].adapt_threshold = THRESHOLD_TABLE_MAX_INDEX;
                 }
             }
+#else   // No V_exe history table
+            atom_state[func_id].adapt_threshold = (uint8_t) (v_exe / ADC_STEP);
+            // Prevent illegal values
+            if (atom_state[func_id].adapt_threshold > THRESHOLD_TABLE_MAX_INDEX) {
+                atom_state[func_id].adapt_threshold = THRESHOLD_TABLE_MAX_INDEX;
+            }
+#endif  // V_EXE_HISTORY_SIZE
+
+#ifdef DEBUG_UART
+            // UART debug info
+            char str_buffer[20];
+            uart_send_str(uitoa_10(v_exe, str_buffer));
+            // uart_send_str(" ");
+            // uart_send_str(uitoa_10(timer_cnt1, str_buffer));
+            // uart_send_str(" ");
+            // uart_send_str(uitoa_10(timer_cnt2, str_buffer));
+            uart_send_str("\n\r");
+#endif
         }
     }
 

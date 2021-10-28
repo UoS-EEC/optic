@@ -86,8 +86,6 @@
 
 #define DEFAULT_HI_THRESHOLD        54      // See table above
 #define DEFAULT_LO_THRESHOLD        96      // See table above
-#define V_EXE_HISTORY_SIZE          5
-
 
 
 // #define DEBUG_GPIO

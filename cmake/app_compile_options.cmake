@@ -49,7 +49,7 @@ IF(${METHOD} STREQUAL "opta")
 ELSEIF(${METHOD} STREQUAL "debs")
     target_link_libraries(
         ${TARGET_NAME}
-        PRIVATE opta
+        PRIVATE debs
         PRIVATE mul_f5
     )
 ENDIF()
