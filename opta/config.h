@@ -105,8 +105,8 @@ uint8_t adc_to_threshold[51] = {
 
 // #define DEBUG_GPIO
 // #define DEBUG_UART
-// #define DEBUG_COMPLETION_INDICATOR
-#define DEBUG_TASK_INDICATOR
+#define DEBUG_COMPLETION_INDICATOR
+// #define DEBUG_TASK_INDICATOR
 // #define DEBUG_ADC_INDICATOR
 
 

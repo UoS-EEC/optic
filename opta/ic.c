@@ -10,6 +10,9 @@
 
 #include "opta/config.h"
 
+#include "radio/hal_spi_rf.h"
+#include "radio/msp_nrf24.h"
+
 
 #define ENABLE_EXTCOMP_INTERRUPT    P3IE |= BIT0
 #define DISABLE_EXTCOMP_INTERRUPT   P3IE &= ~BIT0
@@ -458,6 +461,8 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
 #endif
     PM5CTL0 &= ~LOCKLPM5;       // Disable GPIO power-on default high-impedance mode
 
+    nrf24_spi_init();
+    nrf24_ce_irq_pins_init();
     set_threshold(DEFAULT_HI_THRESHOLD);
     COMPARATOR_DELAY;
     if (!(P3IN & BIT0)) {

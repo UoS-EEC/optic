@@ -58,8 +58,6 @@ void radio_tx_payload(uint8_t* payload) {
 }
 
 int main(void) {
-    nrf24_spi_init();
-    nrf24_ce_irq_pins_init();
     nrf24_init();           // Radio init
     nrf24_w_tx_addr(addr);  // Set tx address
     nrf24_enable_irq();     // Enable radio IRQ

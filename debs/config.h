@@ -84,14 +84,14 @@
 // };
 
 
-#define DEFAULT_HI_THRESHOLD        54      // See table above
-#define DEFAULT_LO_THRESHOLD        96      // See table above
+#define DEFAULT_HI_THRESHOLD        35      // See table above
+#define DEFAULT_LO_THRESHOLD        116      // See table above
 
 
 // #define DEBUG_GPIO
 // #define DEBUG_UART
-// #define DEBUG_COMPLETION_INDICATOR
-#define DEBUG_TASK_INDICATOR
+#define DEBUG_COMPLETION_INDICATOR
+// #define DEBUG_TASK_INDICATOR
 // #define DEBUG_ADC_INDICATOR
 
 
