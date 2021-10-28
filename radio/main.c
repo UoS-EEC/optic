@@ -12,7 +12,14 @@
 #include "radio/hal_spi_rf.h"
 #include "radio/msp_nrf24.h"
 #include "radio/nRF24L01.h"
-#include "radio/ic.h"
+
+#ifdef OPTA
+#include "opta/ic.h"
+#elif defined(DEBS)
+#include "debs/ic.h"
+#else
+#error Specify a method.
+#endif
 
 uint8_t payload[32] = "Hiya Baobeie, how are you today?";
 uint8_t addr[5] = "latte";
@@ -51,6 +58,8 @@ void radio_tx_payload(uint8_t* payload) {
 }
 
 int main(void) {
+    nrf24_spi_init();
+    nrf24_ce_irq_pins_init();
     nrf24_init();           // Radio init
     nrf24_w_tx_addr(addr);  // Set tx address
     nrf24_enable_irq();     // Enable radio IRQ
