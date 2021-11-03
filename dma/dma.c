@@ -25,7 +25,10 @@ void dma(uint8_t* src, uint8_t* dst, uint16_t sz) {
     DMA0CTL |= DMAEN;                       // Enable DMA0
 
     DMA0CTL |= DMAREQ;                  // Trigger block transfer
+
     // CPU should be halted here until the transfer is completed
+    while (!(DMA0CTL & DMAIFG)) {}
+    DMA0CTL &= ~DMAIFG;
 
     atom_func_end(DMA);
 }

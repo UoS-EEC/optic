@@ -21,8 +21,8 @@
 #define UNIT_COMPE_ADC  128
 
 
-#define PROFILING           // Whether profiling
-#define DISCONNECT_SUPPLY_PROFILING     // Whether disconnect supply when profiling
+// #define PROFILING           // Whether profiling
+// #define DISCONNECT_SUPPLY_PROFILING     // Whether disconnect supply when profiling
                                         // Connect P1.5 to the short-circuiting gate to actually disconnect
 
 #define COMPARATOR_DELAY            __delay_cycles(280)     // 35us
@@ -84,8 +84,8 @@
 // };
 
 
-#define DEFAULT_HI_THRESHOLD        35      // See table above
-#define DEFAULT_LO_THRESHOLD        116      // See table above
+#define DEFAULT_HI_THRESHOLD        52      // See table above
+#define DEFAULT_LO_THRESHOLD        96      // See table above
 
 
 // #define DEBUG_GPIO
@@ -94,5 +94,6 @@
 // #define DEBUG_TASK_INDICATOR
 // #define DEBUG_ADC_INDICATOR
 
+#define RADIO
 
 #endif  // DEBS_CONFIG_H_

@@ -10,8 +10,11 @@
 
 #include "debs/config.h"
 
+// Header for radio init functions
+#ifdef RADIO
 #include "radio/hal_spi_rf.h"
 #include "radio/msp_nrf24.h"
+#endif
 
 
 #define ENABLE_EXTCOMP_INTERRUPT    P3IE |= BIT0
@@ -232,6 +235,7 @@ static void gpio_init(void) {
     PJDIR = 0xff;
 }
 
+#ifdef PROFILING
 static void adc12_init(void) {
     ADC12CTL0 &= ~ADC12ENC;     // Stop conversion
     ADC12CTL0 &= ~ADC12ON;      // Turn off
@@ -278,6 +282,7 @@ static uint16_t sample_vcc(void) {
 #endif
     return ADC12MEM0;
 }
+#endif
 
 // Initialise the external comparator
 static void ext_comp_init() {
@@ -429,14 +434,21 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
     gpio_init();
     clock_init();
     ext_comp_init();
+#ifdef PROFILING
     adc12_init();
+#endif
 #ifdef DEBUG_UART
     uart_init();
 #endif
-    PM5CTL0 &= ~LOCKLPM5;       // Disable GPIO power-on default high-impedance mode
 
+#ifdef RADIO
+    // Radio init functions
     nrf24_spi_init();
     nrf24_ce_irq_pins_init();
+#endif
+
+    PM5CTL0 &= ~LOCKLPM5;       // Disable GPIO power-on default high-impedance mode
+
     set_threshold(DEFAULT_HI_THRESHOLD);
     COMPARATOR_DELAY;
     if (!(P3IN & BIT0)) {
@@ -481,11 +493,11 @@ void atom_func_start(uint8_t func_id) {
     } else {                    // Not enough
         P3IFG &= ~BIT0;         // Clear pending high-to-low interrupt
         P3IES &= ~BIT0;         // Detect rising edge next
-        // Sleep and wait for energy refills...
         ENABLE_EXTCOMP_INTERRUPT;
 #ifdef  DEBUG_GPIO
         P1OUT |= BIT4;      // Debug
 #endif
+        // Sleep and wait for energy refills...
         __low_power_mode_3();
         __nop();
         // ... Wake from the ISR when adapt_threshold is hit

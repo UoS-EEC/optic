@@ -53,7 +53,7 @@ void nrf24_ce_irq_pins_init() {
     RF_IRQ_DIR  &= ~RF_IRQ_PIN;     // Input
     RF_IRQ_REN  &= ~RF_IRQ_PIN;     // Disable internal pullup/pulldown, using external pulldown
     // RF_IRQ_OUT  &= ~RF_IRQ_PIN;     // Don't care
-    RF_IRQ_PxIES|=  RF_IRQ_PIN;     // Interrupt at High-to-Low transition
+    RF_IRQ_PxIES |=  RF_IRQ_PIN;    // Interrupt at High-to-Low transition
     // RF_IRQ_PxIFG = 0;               // Clear all pending interrupts at the port
 
     // Configure CE

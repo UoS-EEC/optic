@@ -17,10 +17,6 @@
 #define BSS_SIZE    0x0800  // at most 2KB
 
 #define MAX_ADC_READING 4095
-#define MAX_COMPE_RTAP  32  // Max comparator E resistor tap setting
-#define UNIT_COMPE_ADC  128
-
-
 
 // Disconnect supply when profiling
 // Connect P1.5 to the short-circuiting gate to actually disconnect
@@ -29,12 +25,12 @@
 #define COMPARATOR_DELAY            __delay_cycles(280)     // 35us
 
 #define DEFAULT_HI_THRESHOLD        65      // Value from threshold table
-#define DEFAULT_LO_THRESHOLD        96      // Value from threshold table
+#define DEFAULT_LO_THRESHOLD        94      // Value from threshold table
                                             // Should be just above 2V
                                             // otherwise our ADC doesn't work
-#define PROFILING_THRESHOLD         31      // Index from threshold table
+#define PROFILING_THRESHOLD         31      // Index from threshold table, initial threshold
 #define FIXED_THRESHOLD             35      // Used in test
-#define THRESHOLD_TABLE_MAX_INDEX   50
+#define THRESHOLD_TABLE_MAX_INDEX   38
 #define ADC_STEP                    32
 
 // Target end threshold: 96 Voltage: 2.005 V
@@ -100,6 +96,7 @@ uint8_t adc_to_threshold[51] = {
 // #define LINEAR_ADAPTATION
 #ifdef LINEAR_ADAPTATION
 #define LINEAR_ADAPT_COEFFICIENT    4
+#define UNIT_COMPE_ADC  128
 #endif
 
 
@@ -109,5 +106,6 @@ uint8_t adc_to_threshold[51] = {
 // #define DEBUG_TASK_INDICATOR
 // #define DEBUG_ADC_INDICATOR
 
+#define RADIO
 
 #endif  // OPTA_CONFIG_H_

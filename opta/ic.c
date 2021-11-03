@@ -10,8 +10,11 @@
 
 #include "opta/config.h"
 
+#ifdef RADIO
+// Header for radio init functions
 #include "radio/hal_spi_rf.h"
 #include "radio/msp_nrf24.h"
+#endif
 
 
 #define ENABLE_EXTCOMP_INTERRUPT    P3IE |= BIT0
@@ -459,10 +462,15 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
 #ifdef DEBUG_UART
     uart_init();
 #endif
-    PM5CTL0 &= ~LOCKLPM5;       // Disable GPIO power-on default high-impedance mode
 
+#ifdef RADIO
+    // Radio init functions, comment this for other workloads
     nrf24_spi_init();
     nrf24_ce_irq_pins_init();
+#endif
+
+    PM5CTL0 &= ~LOCKLPM5;       // Disable GPIO power-on default high-impedance mode
+
     set_threshold(DEFAULT_HI_THRESHOLD);
     COMPARATOR_DELAY;
     if (!(P3IN & BIT0)) {
@@ -529,6 +537,10 @@ void atom_func_start(uint8_t func_id) {
     if (atom_state[func_id].check_fail) {
         atom_state[func_id].check_fail = false;
         atom_state[func_id].adapt_threshold += 2;   // Increase threshold by ~50mV
+        // Prevent illegal values
+        if (atom_state[func_id].adapt_threshold > THRESHOLD_TABLE_MAX_INDEX) {
+            atom_state[func_id].adapt_threshold = THRESHOLD_TABLE_MAX_INDEX;
+        }
     }
 
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
@@ -625,6 +637,10 @@ void atom_func_end(uint8_t func_id) {
     // If target end threshold is violated, though didn't die (1.8V < Vcc < Vtarget_end)
     if ((P3IN & BIT0) == 0) {
         atom_state[func_id].adapt_threshold += 2;
+        // Prevent illegal values
+        if (atom_state[func_id].adapt_threshold > THRESHOLD_TABLE_MAX_INDEX) {
+            atom_state[func_id].adapt_threshold = THRESHOLD_TABLE_MAX_INDEX;
+        }
         profiling = false;
     }
 
@@ -778,14 +794,9 @@ void atom_func_end_linear(uint8_t func_id, uint8_t param) {
         timer_cnt2 = TA0R - timer_cnt1;  // T_exe
 
         // Calculate the actual voltage drop
-#ifdef FLOAT_POINT_ARITHMETIC
-        // Float-point method
-        v_exe = (float) timer_cnt2 / timer_cnt1 * d_v_charge + d_v_discharge;
-#else
         // Integer method
         v_exe = (uint16_t) ((((timer_cnt2 * 0x100) / timer_cnt1) * d_v_charge +
                             (d_v_discharge * 0x100)) / 0x100);
-#endif
 
         if (v_exe < 4096) {  // Discard illegal results over 4096
             if (param <= param_min) {

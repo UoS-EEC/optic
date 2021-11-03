@@ -84,6 +84,7 @@ int main(void) {
         dma(input, output, 2048);   // 4096 bytes
         // dma(input, output, 1024);   // 2048 bytes
         // dma(input, output, 512);    // 1024 bytes
+        // __delay_cycles(8000);
     }
 
     return 0;
