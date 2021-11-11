@@ -106,6 +106,6 @@ uint8_t adc_to_threshold[51] = {
 // #define DEBUG_TASK_INDICATOR
 // #define DEBUG_ADC_INDICATOR
 
-#define RADIO
+// #define RADIO
 
 #endif  // OPTA_CONFIG_H_

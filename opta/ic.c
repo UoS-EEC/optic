@@ -706,27 +706,87 @@ void atom_func_end(uint8_t func_id) {
 // Linear adaptation utility
 
 // The following parameters should be dedicated to each function later
-uint16_t PERSISTENT param_min = 0xFFFF;
-uint16_t PERSISTENT param_max = 0;
+uint16_t PERSISTENT x_min = 0xFFFF;
+uint16_t PERSISTENT x_max = 0;
 uint16_t PERSISTENT y_min = 0xFFFF;
 uint16_t PERSISTENT y_max = 0;
 // uint16_t PERSISTENT slope = 0;
-uint16_t PERSISTENT offset = UNIT_COMPE_ADC * 8;
-uint16_t PERSISTENT y_curr;
+uint16_t PERSISTENT offset = ADC_STEP * 8;
+uint16_t PERSISTENT y_curr = ADC_STEP * PROFILING_THRESHOLD;
 
-void atom_func_start_linear(uint8_t func_id, uint16_t param) {
+void atom_func_start_linear(uint8_t func_id, uint16_t x) {
     // If the task failed before, reset the profiling
     if (atom_state[func_id].check_fail) {
-        offset += UNIT_COMPE_ADC;
+        atom_state[func_id].check_fail = false;
+        offset += ADC_STEP;
     }
 
-    if (param_max <= param_min) {
-        y_curr = offset;
-    } else {
-        y_curr = (y_max - y_min) * param / (param_max - param_min) + offset;
+    if (x_min < x_max) {
+        y_curr = (y_max - y_min) * x / (x_max - x_min) + offset;
     }
 
-    // *** Charging cycle starts ***
+    // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
+    // ..or continue directly if (Vcc > adapt_threshold)
+    set_threshold(adc_to_threshold[y_curr / ADC_STEP]);
+    COMPARATOR_DELAY;
+    if (P3IN & BIT0) {          // Enough energy
+        profiling = false;
+        set_threshold(DEFAULT_LO_THRESHOLD);
+    } else {                    // Not enough energy
+#ifdef DELAY_COUNTER
+        if (--atom_state[func_id].delay_cnt == 0) {
+            profiling = true;
+            atom_state[func_id].delay_cnt = DELAY_COUNTER;
+        }
+#else
+        profiling = true;
+#endif
+        if (profiling) {
+            // Take a Vcc reading
+            // P3.0 interrupt preempted by this, so we have to manually sleep later
+            adc_r1 = sample_vcc();
+            // Clear and start Timer A0
+            TA0CTL = TASSEL__ACLK | MC__CONTINUOUS | TACLR;
+        }
+        P3IFG &= ~BIT0;         // Clear pending falling edge interrupt
+        P3IES &= ~BIT0;         // Detect rising edge next
+        ENABLE_EXTCOMP_INTERRUPT;
+#ifdef DEBUG_GPIO
+        P7OUT &= ~BIT0;         // Indicate overhead
+#endif
+#ifdef  DEBUG_GPIO
+        P1OUT |= BIT4;          // Debug
+#endif
+        // Sleep and wait for energy refills...
+        __low_power_mode_3();
+        __nop();
+        // ...Wake from the ISR when adapt_threshold is hit
+        DISABLE_EXTCOMP_INTERRUPT;
+
+        // *** Charging cycle ends, discharging cycle starts ***
+#ifdef DEBUG_GPIO
+        P7OUT |= BIT0;          // Indicate overhead
+#endif
+        if (profiling) {
+            timer_cnt1 = TA0R;      // Take a time reading, get T_charge
+            // Check if charging time is too short
+            if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {
+                // Continue profiling
+                // Take a Vcc reading, get Delta V_charge
+                adc_r2 = sample_vcc();
+                d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
+            } else {
+                // Charging time too short, stop profiling
+                profiling = false;
+                TA0CTL &= ~MC;      // Stop Timer A0
+            }
+        }
+    }
+    atom_state[func_id].check_fail = true;
+
+
+
+
     CEINT &= ~CEIIE;
     P7OUT |= BIT0;      // Indicate overhead
 
@@ -741,7 +801,7 @@ void atom_func_start_linear(uint8_t func_id, uint16_t param) {
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
     // Sleep and wait for energy recharged
-    uint8_t temp = (uint8_t) (y_curr / UNIT_COMPE_ADC + 1 + TARGET_END_THRESHOLD);
+    uint8_t temp = (uint8_t) (y_curr / ADC_STEP + 1 + TARGET_END_THRESHOLD);
     if (temp > 31) temp = 31;
     set_CEREF1(temp);
     COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
@@ -758,14 +818,14 @@ void atom_func_start_linear(uint8_t func_id, uint16_t param) {
         adc_r2 = sample_vcc();
         d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
     }
-    atom_state[func_id].check_fail = 1;
+    atom_state[func_id].check_fail = true;
     P7OUT &= ~BIT0;     // Indicate overhead
 
     P1OUT |= BIT0;  // Debug
     // Run the atomic function...
 }
 
-void atom_func_end_linear(uint8_t func_id, uint8_t param) {
+void atom_func_end_linear(uint8_t func_id, uint8_t x) {
     // ...Atomic function ends
     P1OUT &= ~BIT0;
 
@@ -779,9 +839,9 @@ void atom_func_end_linear(uint8_t func_id, uint8_t param) {
     // *** Discharging cycle ends ***
     P7OUT |= BIT0;      // Indicate overhead
 
-    atom_state[func_id].check_fail = 0;     // Succefully complete
+    atom_state[func_id].check_fail = false;     // Succefully complete
     if (!(CECTL1 & CEOUT)) {     // If target end threshold is not met
-        offset += UNIT_COMPE_ADC;
+        offset += ADC_STEP;
     }
     TA0CTL &= ~MC;  // Stop Timer A0
 
@@ -799,12 +859,12 @@ void atom_func_end_linear(uint8_t func_id, uint8_t param) {
                             (d_v_discharge * 0x100)) / 0x100);
 
         if (v_exe < 4096) {  // Discard illegal results over 4096
-            if (param <= param_min) {
-                param_min = param;
+            if (x <= x_min) {
+                x_min = x;
                 y_min = v_exe;
             }
-            if (param >= param_max) {
-                param_max = param;
+            if (x >= x_max) {
+                x_max = x;
                 y_max = v_exe;
             }
 
