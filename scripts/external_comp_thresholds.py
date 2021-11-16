@@ -14,7 +14,8 @@ v_arr = []
 v_ref_typ = 0.4             # 400mV typical reference, rising edge
 v_ref_hys = 0.0065          # 6.5mV hysteresis, take a mean for correction
 v_ref_offset = -0.003       # Offset (error), based on actual threshold
-v_ref = v_ref_typ - v_ref_hys / 2 + v_ref_offset
+# v_ref = v_ref_typ - v_ref_hys / 2 + v_ref_offset
+v_ref = v_ref_typ - v_ref_hys + v_ref_offset  # Guarantee the low one
 
 
 # print("Threshold : V_th")
@@ -37,7 +38,7 @@ for n in range(129):
 
 # Settings
 adc_step = 32                   # Set the step of ADC readings
-target_end_voltage = 1.8        # Target end voltage
+target_end_voltage = 2.0        # Target end voltage
 internal_voltage_reference = 2.0
 voltage_divider = 0.5
 actual_voltage_reference = internal_voltage_reference / voltage_divider

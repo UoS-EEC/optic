@@ -25,7 +25,7 @@
 #define COMPARATOR_DELAY            __delay_cycles(280)     // 35us
 
 #define DEFAULT_HI_THRESHOLD        65      // Value from threshold table
-#define DEFAULT_LO_THRESHOLD        94      // Value from threshold table
+#define DEFAULT_LO_THRESHOLD        96      // Value from threshold table
                                             // Should be just above 2V
                                             // otherwise our ADC doesn't work
 #define PROFILING_THRESHOLD         31      // Index from threshold table, initial threshold
@@ -33,77 +33,78 @@
 #define THRESHOLD_TABLE_MAX_INDEX   38
 #define ADC_STEP                    32
 
-// Target end threshold: 96 Voltage: 2.005 V
+// Target end threshold: 94 Voltage: 2.010 V
 // Threshold convert table:
 uint8_t adc_to_threshold[51] = {
-    93,     //   0, 2.038V
-    90,     //   1, 2.072V
-    88,     //   2, 2.096V
-    85,     //   3, 2.133V
-    83,     //   4, 2.158V
-    80,     //   5, 2.197V
-    78,     //   6, 2.223V
-    76,     //   7, 2.250V
-    73,     //   8, 2.293V
-    71,     //   9, 2.322V
-    69,     //  10, 2.351V
-    67,     //  11, 2.382V
-    65,     //  12, 2.413V
-    63,     //  13, 2.445V
-    61,     //  14, 2.478V
-    59,     //  15, 2.512V
-    57,     //  16, 2.547V
-    56,     //  17, 2.565V
-    54,     //  18, 2.601V
-    52,     //  19, 2.639V
-    51,     //  20, 2.658V
-    49,     //  21, 2.697V
-    47,     //  22, 2.737V
-    46,     //  23, 2.758V
-    44,     //  24, 2.800V
-    43,     //  25, 2.822V
-    41,     //  26, 2.866V
-    40,     //  27, 2.888V
-    39,     //  28, 2.911V
-    37,     //  29, 2.958V
-    36,     //  30, 2.982V
-    35,     //  31, 3.006V
-    33,     //  32, 3.057V
-    32,     //  33, 3.082V
-    31,     //  34, 3.108V
-    30,     //  35, 3.135V
-    29,     //  36, 3.162V
-    28,     //  37, 3.189V
-    26,     //  38, 3.246V
-    25,     //  39, 3.275V
-    24,     //  40, 3.304V
-    23,     //  41, 3.334V
-    22,     //  42, 3.365V
-    21,     //  43, 3.396V
-    20,     //  44, 3.428V
-    19,     //  45, 3.460V
-    18,     //  46, 3.493V
-    17,     //  47, 3.527V
-    16,     //  48, 3.561V
-    15,     //  49, 3.596V
-    15,     //  50, 3.596V
+    92,     //   0, 2.032V
+    89,     //   1, 2.067V
+    86,     //   2, 2.103V
+    84,     //   3, 2.127V
+    81,     //   4, 2.165V
+    79,     //   5, 2.192V
+    76,     //   6, 2.232V
+    74,     //   7, 2.260V
+    72,     //   8, 2.288V
+    70,     //   9, 2.317V
+    68,     //  10, 2.347V
+    66,     //  11, 2.378V
+    64,     //  12, 2.409V
+    62,     //  13, 2.442V
+    60,     //  14, 2.475V
+    58,     //  15, 2.509V
+    56,     //  16, 2.544V
+    54,     //  17, 2.580V
+    53,     //  18, 2.598V
+    51,     //  19, 2.636V
+    49,     //  20, 2.675V
+    48,     //  21, 2.695V
+    46,     //  22, 2.735V
+    45,     //  23, 2.756V
+    43,     //  24, 2.798V
+    42,     //  25, 2.820V
+    40,     //  26, 2.864V
+    39,     //  27, 2.887V
+    38,     //  28, 2.910V
+    36,     //  29, 2.957V
+    35,     //  30, 2.982V
+    34,     //  31, 3.006V
+    32,     //  32, 3.057V
+    31,     //  33, 3.083V
+    30,     //  34, 3.109V
+    29,     //  35, 3.136V
+    28,     //  36, 3.163V
+    27,     //  37, 3.191V
+    26,     //  38, 3.219V
+    24,     //  39, 3.277V
+    23,     //  40, 3.307V
+    22,     //  41, 3.337V
+    21,     //  42, 3.368V
+    20,     //  43, 3.400V
+    19,     //  44, 3.432V
+    18,     //  45, 3.464V
+    17,     //  46, 3.498V
+    16,     //  47, 3.531V
+    15,     //  48, 3.566V
+    15,     //  49, 3.566V
+    14,     //  50, 3.601V
 };
 
 #define MIN_PROFILING_TIMER_CNT     4
 // #define V_EXE_HISTORY_SIZE          3
 #define DELAY_COUNTER               5   // Should be > 1, otherwise comment
 
-// #define LINEAR_ADAPTATION
+#define LINEAR_ADAPTATION
 #ifdef LINEAR_ADAPTATION
-#define LINEAR_ADAPT_COEFFICIENT    4
-#define UNIT_COMPE_ADC  128
+#define HIST_SIZE                   5
+#define LINEAR_FIT_OVERHEAD
+#define DELAY_COUNTER_LINEAR        10
 #endif
 
 
 // #define DEBUG_GPIO
 // #define DEBUG_UART
 #define DEBUG_COMPLETION_INDICATOR
-// #define DEBUG_TASK_INDICATOR
+#define DEBUG_TASK_INDICATOR
 // #define DEBUG_ADC_INDICATOR
 
 // #define RADIO

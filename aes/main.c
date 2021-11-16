@@ -139,6 +139,10 @@ unsigned char __attribute__((section(".persistent"))) input[4096] =
 unsigned char __attribute__((section(".persistent"))) output[4096];
 // unsigned char __attribute__((section(".persistent"))) output2[4096];
 
+
+uint8_t __attribute__((section(".persistent"))) rand[50] = {15, 5, 10, 4, 11, 13, 8, 9, 12, 11, 5, 12, 14, 9, 10, 4, 13, 15, 8, 13, 4, 12, 15, 10, 14, 5, 7, 13, 12, 15, 10, 11, 8, 6, 14, 7, 13, 4, 11, 14, 8, 5, 7, 15, 4, 12, 7, 11, 8, 13};
+uint8_t __attribute__((section(".persistent"))) rand_i = 0;
+
 // void dummy_function(uint16_t cnt) {
 //     atom_func_start_linear(0, cnt);
 //     uint16_t i = cnt * 1000;
@@ -179,6 +183,8 @@ int main(void) {
     // uart_init();    // Init UART for printing
     // uint16_t j = 1;  // For dummy function test
     for (;;) {
+        aes_128_enc(key, iv, input, output, 16 * rand[rand_i]);
+        if (++rand_i == 50) rand_i = 0;
         // ******* Dummy function test *******
         // dummy_function(j);
         // if (++j == 10) {
@@ -189,16 +195,15 @@ int main(void) {
         // aes_128_enc(key, iv, plaintext2, ciphertext2, 2);
         // aes_128_dec(key, iv, ciphertext2, deciphertext2, 2);
 
+        // aes_128_enc(key, iv, input, output, 16);        // Encrypt 256B data
         // aes_128_enc(key, iv, input, output, 32);        // Encrypt 512B data
         // aes_128_enc(key, iv, input, output, 64);        // Encrypt 1KB data
-        // aes_128_enc(key, iv, input, output, 128);       // Encrypt 2KB data
-        // aes_128_enc(key, iv, input, output, 192);       // Encrypt 3KB data
-        aes_128_enc(key, iv, input, output, 255);       // Encrypt ~4KB data
-
-        // aes_128_enc(key, iv, input, output, 16);        // Encrypt 256B data
         // aes_128_enc(key, iv, input, output, 96);        // Encrypt 1.5KB data
+        // aes_128_enc(key, iv, input, output, 128);       // Encrypt 2KB data
         // aes_128_enc(key, iv, input, output, 160);       // Encrypt 2.5KB data
+        // aes_128_enc(key, iv, input, output, 192);       // Encrypt 3KB data
         // aes_128_enc(key, iv, input, output, 224);       // Encrypt 3.5KB data
+        // aes_128_enc(key, iv, input, output, 255);       // Encrypt ~4KB data
 
         // aes_128_dec(key, iv, input, input, 64);         // Decrypt 1KB data
         // aes_128_dec(key, iv, output, output2, 128);     // Decrypt 2KB data

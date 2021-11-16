@@ -84,16 +84,16 @@
 // };
 
 
-#define DEFAULT_HI_THRESHOLD        52      // See table above
+#define DEFAULT_HI_THRESHOLD        24      // See table above
 #define DEFAULT_LO_THRESHOLD        96      // See table above
 
 
 // #define DEBUG_GPIO
 // #define DEBUG_UART
 #define DEBUG_COMPLETION_INDICATOR
-// #define DEBUG_TASK_INDICATOR
+#define DEBUG_TASK_INDICATOR
 // #define DEBUG_ADC_INDICATOR
 
-#define RADIO
+// #define RADIO
 
 #endif  // DEBS_CONFIG_H_

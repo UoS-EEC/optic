@@ -10,13 +10,13 @@
 
 #include "opta/config.h"
 
-#ifdef RADIO
 // Header for radio init functions
+#ifdef RADIO
 #include "radio/hal_spi_rf.h"
 #include "radio/msp_nrf24.h"
 #endif
 
-
+// Macros
 #define ENABLE_EXTCOMP_INTERRUPT    P3IE |= BIT0
 #define DISABLE_EXTCOMP_INTERRUPT   P3IE &= ~BIT0
 #define __low_power_mode_3_on_exit()    __bis_SR_register_on_exit(LPM3_bits | GIE)
@@ -528,11 +528,9 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
 
 void atom_func_start(uint8_t func_id) {
     DISABLE_EXTCOMP_INTERRUPT;
-
 #ifdef DEBUG_GPIO
     P7OUT |= BIT0;      // Indicate overhead
 #endif
-
     // If the task failed before, reset the profiling
     if (atom_state[func_id].check_fail) {
         atom_state[func_id].check_fail = false;
@@ -706,37 +704,40 @@ void atom_func_end(uint8_t func_id) {
 // Linear adaptation utility
 
 // The following parameters should be dedicated to each function later
-uint16_t PERSISTENT x_min = 0xFFFF;
-uint16_t PERSISTENT x_max = 0;
-uint16_t PERSISTENT y_min = 0xFFFF;
-uint16_t PERSISTENT y_max = 0;
-// uint16_t PERSISTENT slope = 0;
-uint16_t PERSISTENT offset = ADC_STEP * 8;
-uint16_t PERSISTENT y_curr = ADC_STEP * PROFILING_THRESHOLD;
+uint16_t PERSISTENT y_hist[HIST_SIZE];
+uint16_t PERSISTENT x_hist[HIST_SIZE];
+uint8_t  PERSISTENT index = 0;
+uint16_t PERSISTENT theta_0 = ADC_STEP * PROFILING_THRESHOLD;   // Intercept
+uint16_t PERSISTENT theta_1 = 0;    // Slope
+uint8_t  PERSISTENT linear_delay_cnt = HIST_SIZE;
 
 void atom_func_start_linear(uint8_t func_id, uint16_t x) {
+    DISABLE_EXTCOMP_INTERRUPT;
+#ifdef DEBUG_GPIO
+    P7OUT |= BIT0;      // Indicate overhead
+#endif
     // If the task failed before, reset the profiling
     if (atom_state[func_id].check_fail) {
         atom_state[func_id].check_fail = false;
-        offset += ADC_STEP;
-    }
-
-    if (x_min < x_max) {
-        y_curr = (y_max - y_min) * x / (x_max - x_min) + offset;
+        theta_0 += ADC_STEP;
     }
 
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
-    set_threshold(adc_to_threshold[y_curr / ADC_STEP]);
+    set_threshold(adc_to_threshold[(theta_0 + x * theta_1) / ADC_STEP]);
     COMPARATOR_DELAY;
     if (P3IN & BIT0) {          // Enough energy
         profiling = false;
         set_threshold(DEFAULT_LO_THRESHOLD);
     } else {                    // Not enough energy
-#ifdef DELAY_COUNTER
-        if (--atom_state[func_id].delay_cnt == 0) {
+#ifdef DELAY_COUNTER_LINEAR
+        if (--linear_delay_cnt < HIST_SIZE) {
             profiling = true;
-            atom_state[func_id].delay_cnt = DELAY_COUNTER;
+            if (linear_delay_cnt == 0) {
+                linear_delay_cnt = DELAY_COUNTER_LINEAR + HIST_SIZE;
+            }
+        } else {
+            profiling = false;
         }
 #else
         profiling = true;
@@ -783,107 +784,93 @@ void atom_func_start_linear(uint8_t func_id, uint16_t x) {
         }
     }
     atom_state[func_id].check_fail = true;
-
-
-
-
-    CEINT &= ~CEIIE;
-    P7OUT |= BIT0;      // Indicate overhead
-
-    // Take a Vcc reading
-    adc_r1 = sample_vcc();
-    // Clear and start Timer A0
-    TA0CTL = TASSEL__ACLK | MC__CONTINUOUS | TACLR;
-
-    P7OUT &= ~BIT0;     // Indicate overhead
-    CEINT |= CEIIE;
-
-    // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
-    // ..or continue directly if (Vcc > adapt_threshold)
-    // Sleep and wait for energy recharged
-    uint8_t temp = (uint8_t) (y_curr / ADC_STEP + 1 + TARGET_END_THRESHOLD);
-    if (temp > 31) temp = 31;
-    set_CEREF1(temp);
-    COMPARATOR_DELAY;  // May sleep here until Hi Vth is reached
-    set_CEREF1(TARGET_END_THRESHOLD);
-
-    // *** Charging cycle ends, discharging cycle starts ***
-    CEINT &= ~CEIIE;
-    P7OUT |= BIT0;      // Indicate overhead
-    // Take a time reading, get T_charge
-    timer_cnt1 = TA0R;  // T_charge
-
-    if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {  // Don't profile if charging time is too short
-        // Take a Vcc reading, get Delta V_charge
-        adc_r2 = sample_vcc();
-        d_v_charge = (int16_t) adc_r2 - (int16_t) adc_r1;
-    }
-    atom_state[func_id].check_fail = true;
-    P7OUT &= ~BIT0;     // Indicate overhead
-
-    P1OUT |= BIT0;  // Debug
+#ifdef DEBUG_GPIO
+    P7OUT &= ~BIT0;             // Indicate overhead
+#endif
+#ifdef DISCONNECT_SUPPLY_PROFILING
+    P1OUT |= BIT5;              // Disconnect supply, only valid when P1.5 is connected
+#endif
+#ifdef DEBUG_TASK_INDICATOR
+    P1OUT |= BIT0;              // Debug
+#endif
     // Run the atomic function...
 }
 
-void atom_func_end_linear(uint8_t func_id, uint8_t x) {
+void atom_func_end_linear(uint8_t func_id, uint16_t x) {
     // ...Atomic function ends
+#ifdef DEBUG_TASK_INDICATOR
     P1OUT &= ~BIT0;
-
+#endif
+#ifdef DISCONNECT_SUPPLY_PROFILING
+    P1OUT &= ~BIT5;             // Reconnect supply, only valid when P1.5 is connected
+#endif
 #ifdef DEBUG_COMPLETION_INDICATOR
     // Indicate completion
     P7OUT |= BIT1;
     __delay_cycles(0xF);
     P7OUT &= ~BIT1;
 #endif
-
     // *** Discharging cycle ends ***
-    P7OUT |= BIT0;      // Indicate overhead
-
+#ifdef DEBUG_GPIO
+    P7OUT |= BIT0;              // Indicate overhead
+#endif
+    // Succefully complete, clear the check_fail flag
     atom_state[func_id].check_fail = false;     // Succefully complete
-    if (!(CECTL1 & CEOUT)) {     // If target end threshold is not met
-        offset += ADC_STEP;
+    // If target end threshold is violated, though didn't die (1.8V < Vcc < Vtarget_end)
+    if ((P3IN & BIT0) == 0) {
+        theta_0 += ADC_STEP;
+        profiling = false;
     }
-    TA0CTL &= ~MC;  // Stop Timer A0
 
-    if (timer_cnt1 > MIN_PROFILING_TIMER_CNT) {    // Don't profile if charging time is too short
-        // Take a Vcc reading, get Delta V_exe
-        adc_r1 = sample_vcc();
+    if (profiling) {
+        TA0CTL &= ~MC;                      // Stop Timer A0
+        timer_cnt2 = TA0R - timer_cnt1;     // Take a time reading, get T_exe
+        adc_r1 = sample_vcc();              // Take a Vcc reading, get Delta V_exe
         d_v_discharge = (int16_t) adc_r2 - (int16_t) adc_r1;
-
-        // Take a time reading, get T_exe
-        timer_cnt2 = TA0R - timer_cnt1;  // T_exe
-
-        // Calculate the actual voltage drop
-        // Integer method
+        // Calculate the actual voltage drop (integer method)
         v_exe = (uint16_t) ((((timer_cnt2 * 0x100) / timer_cnt1) * d_v_charge +
                             (d_v_discharge * 0x100)) / 0x100);
 
-        if (v_exe < 4096) {  // Discard illegal results over 4096
-            if (x <= x_min) {
-                x_min = x;
-                y_min = v_exe;
-            }
-            if (x >= x_max) {
-                x_max = x;
-                y_max = v_exe;
-            }
-
-            // offset = offset - y_curr / LINEAR_ADAPT_COEFFICIENT + v_exe / LINEAR_ADAPT_COEFFICIENT;
-            offset += (v_exe - y_curr) / LINEAR_ADAPT_COEFFICIENT;
-#ifdef DEBUG_UART
-            // UART debug info
-            char str_buffer[20];
-            uart_send_str(uitoa_10((uint16_t) v_exe, str_buffer));
-            uart_send_str(" ");
-            uart_send_str(uitoa_10((uint16_t) y_curr, str_buffer));
-            uart_send_str(" ");
-            uart_send_str(uitoa_10((uint16_t) offset, str_buffer));
-            uart_send_str("\n\r");
+        if (v_exe < MAX_ADC_READING) {      // Discard illegal results >= MAX_ADC_READING
+            y_hist[index] = v_exe;
+            x_hist[index] = x;
+            if (++index == 5) {
+#ifdef LINEAR_FIT_OVERHEAD
+                P8OUT |= BIT1;
 #endif
+                index = 0;
+                uint32_t sum_x = 0;
+                uint32_t sum_x2 = 0;
+                uint32_t sum_y = 0;
+                uint32_t sum_xy  = 0;
+                for (uint8_t i = 0; i < HIST_SIZE; ++i) {
+                    sum_x += x_hist[i];
+                    sum_x2 += x_hist[i] * x_hist[i];
+                    sum_y += y_hist[i];
+                    sum_xy += x_hist[i] * y_hist[i];
+                }
+                uint32_t den = HIST_SIZE * sum_x2 - sum_x * sum_x;
+                theta_0 = (sum_x2 * sum_y - sum_x * sum_xy) / den;
+                theta_1 = (HIST_SIZE * sum_xy - sum_x * sum_y) / den;
+#ifdef LINEAR_FIT_OVERHEAD
+                P8OUT &= ~BIT1;
+#endif
+#ifdef DEBUG_UART
+                // UART debug info
+                char str_buffer[20];
+                uart_send_str(uitoa_10((uint16_t) theta_0, str_buffer));
+                uart_send_str(" ");
+                uart_send_str(uitoa_10((uint16_t) theta_1, str_buffer));
+                uart_send_str("\n\r");
+#endif
+            }
         }
     }
+    if (P3IN & BIT0) P3IFG &= ~BIT0;  // Prevent fake interrupt when Vcc > Vtarget_end here
+#ifdef DEBUG_GPIO
     P7OUT &= ~BIT0;     // Indicate overhead
-    CEINT |= CEIIE;
+#endif
+    ENABLE_EXTCOMP_INTERRUPT;
 }
 
 #endif  // LINEAR_ADAPTATION
