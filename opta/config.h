@@ -90,14 +90,25 @@ uint8_t adc_to_threshold[51] = {
 };
 
 #define MIN_PROFILING_TIMER_CNT     4
-// #define V_EXE_HISTORY_SIZE          3
+// #define V_EXE_HISTORY_SIZE          3   // Better be < 10
 #define DELAY_COUNTER               5   // Should be > 1, otherwise comment
 
 #define LINEAR_ADAPTATION
 #ifdef LINEAR_ADAPTATION
+
+// #define METHOD1
+#define METHOD2
+#if defined(METHOD1)
 #define HIST_SIZE                   5
 #define LINEAR_FIT_OVERHEAD
 #define DELAY_COUNTER_LINEAR        10
+#elif defined(METHOD2)
+#else
+#error Specify a linear adaptation method.
+#endif
+
+
+
 #endif
 
 
