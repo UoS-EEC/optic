@@ -12,16 +12,16 @@ v_arr = []
 
 # Settings
 v_ref_typ = 0.4             # 400mV typical reference, rising edge
-v_ref_hys = 0.0065          # 6.5mV hysteresis, take a mean for correction
+v_ref_hys = 0.0065          # 6.5mV hysteresis
 v_ref_offset = -0.003       # Offset (error), based on actual threshold
-# v_ref = v_ref_typ - v_ref_hys / 2 + v_ref_offset
-v_ref = v_ref_typ - v_ref_hys + v_ref_offset  # Guarantee the low one
+# v_ref = v_ref_typ - v_ref_hys / 2 + v_ref_offset    # Take the mean between hi and lo
+v_ref = v_ref_typ - v_ref_hys + v_ref_offset  # Guarantee the low threshold
 
 
-# print("Threshold : V_th")
+print("Threshold : V_th")
 for n in range(129):
     v = (560 + 68 + 100) / (n / 128 * 100 + 68) * v_ref
-    # print("%4d" % n, " : ", "%6f" % v)
+    print("%9d" % n, ":", "%.3f" % v)
     n_arr.append(n)
     v_arr.append(v)
 
@@ -29,12 +29,6 @@ for n in range(129):
 # plt.ylabel('V_th (V)')
 # plt.xlabel('POT N')
 # plt.show()
-
-# adc_arr = []
-# for n in range(4096):
-#     adc_arr.append(n / 4095 * 3.6)
-#     print("%4d" % n, " : ", "%6f" % adc_arr[n])
-
 
 # Settings
 adc_step = 32                   # Set the step of ADC readings
@@ -55,12 +49,15 @@ thresholds = []
 v_th = n_step * v_step + target_end_voltage
 max_v_threshold = 3.6
 
-i = 128
 # The goal is to generate a look-up table: threshold[profiling_result / adc_step]
+i = 128
 while v_th < max_v_threshold:
     while i >= 0 and v_arr[i] < v_th:
         i -= 1
-    thresholds.append(i)
+    if i + 1 <= 128 and v_th - v_arr[i+1] < 0.005:
+        thresholds.append(i + 1)
+    else:
+        thresholds.append(i)
     n_step += 1
     v_th = n_step * v_step + target_end_voltage
 

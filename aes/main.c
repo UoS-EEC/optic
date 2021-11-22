@@ -140,7 +140,8 @@ unsigned char __attribute__((section(".persistent"))) output[4096];
 // unsigned char __attribute__((section(".persistent"))) output2[4096];
 
 
-uint8_t __attribute__((section(".persistent"))) rand[50] = {15, 5, 10, 4, 11, 13, 8, 9, 12, 11, 5, 12, 14, 9, 10, 4, 13, 15, 8, 13, 4, 12, 15, 10, 14, 5, 7, 13, 12, 15, 10, 11, 8, 6, 14, 7, 13, 4, 11, 14, 8, 5, 7, 15, 4, 12, 7, 11, 8, 13};
+// uint8_t __attribute__((section(".persistent"))) rand[50] = {4, 13, 5, 5, 4, 6, 8, 8, 14, 10, 12, 11, 8, 11, 9, 11, 9, 5, 12, 6, 9, 13, 6, 13, 5, 9, 11, 12, 11, 9, 11, 9, 6, 13, 14, 5, 6, 13, 7, 4, 15, 13, 7, 10, 4, 8, 7, 9, 10, 5};
+uint8_t __attribute__((section(".persistent"))) rand[50] = {3, 1, 9, 2, 15, 4, 2, 4, 3, 11, 9, 8, 3, 1, 14, 15, 11, 5, 14, 7, 9, 14, 8, 5, 6, 15, 11, 6, 10, 5, 4, 15, 4, 15, 12, 1, 10, 14, 3, 8, 10, 9, 3, 2, 1, 5, 1, 14, 14, 5};
 uint8_t __attribute__((section(".persistent"))) rand_i = 0;
 
 // void dummy_function(uint16_t cnt) {

@@ -10,6 +10,10 @@
 void atom_func_start(uint8_t func_id);
 void atom_func_end(uint8_t func_id);
 
+// Pseudo functions just for convenience
+void atom_func_start_linear(uint8_t func_id, uint16_t param);
+void atom_func_end_linear(uint8_t func_id, uint16_t param);
+
 // Configs
 // Atomic function IDs
 #define AES_128_ENC         0

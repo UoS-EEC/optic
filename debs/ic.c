@@ -552,3 +552,11 @@ void atom_func_end(uint8_t func_id) {
     if (P3IN & BIT0) P3IFG &= ~BIT0;  // Prevent fake interrupt when Vcc > Vtarget_end here
     ENABLE_EXTCOMP_INTERRUPT;
 }
+
+void atom_func_start_linear(uint8_t func_id, uint16_t param) {
+    atom_func_start(func_id);
+}
+
+void atom_func_end_linear(uint8_t func_id, uint16_t param) {
+    atom_func_end(func_id);
+}

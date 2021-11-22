@@ -883,8 +883,8 @@ void atom_func_end_linear(uint8_t func_id, uint16_t x) {
 // Update linear parameters when x_min or /x_max is updated
 
 /** TODO: add necessary parameters **/
-uint16_t PERSISTENT x_min;
-uint16_t PERSISTENT x_max;
+uint16_t PERSISTENT x_min = 0xFFFF;
+uint16_t PERSISTENT x_max = 0x0;
 uint16_t PERSISTENT y_min;
 uint16_t PERSISTENT y_max;
 uint16_t PERSISTENT theta_0 = ADC_STEP * PROFILING_THRESHOLD;   // Intercept
@@ -895,7 +895,7 @@ void atom_func_start_linear(uint8_t func_id, uint16_t x) {
 #ifdef DEBUG_GPIO
     P7OUT |= BIT0;      // Indicate overhead
 #endif
-    // If the task failed before, reset the profiling
+    // If the task failed last time, increment theta_0
     if (atom_state[func_id].check_fail) {
         atom_state[func_id].check_fail = false;
         theta_0 += ADC_STEP;
@@ -904,10 +904,10 @@ void atom_func_start_linear(uint8_t func_id, uint16_t x) {
 
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
+    profiling = false;          // Profiling disabled by default
     set_threshold(adc_to_threshold[(theta_0 + x * theta_1) / ADC_STEP]);
     COMPARATOR_DELAY;
     if (P3IN & BIT0) {          // Enough energy
-        profiling = false;
         set_threshold(DEFAULT_LO_THRESHOLD);
     } else {                    // Not enough energy
         if (x <= x_min) {
@@ -963,9 +963,6 @@ void atom_func_start_linear(uint8_t func_id, uint16_t x) {
 #ifdef DEBUG_GPIO
     P7OUT &= ~BIT0;             // Indicate overhead
 #endif
-#ifdef DISCONNECT_SUPPLY_PROFILING
-    P1OUT |= BIT5;              // Disconnect supply, only valid when P1.5 is connected
-#endif
 #ifdef DEBUG_TASK_INDICATOR
     P1OUT |= BIT0;              // Debug
 #endif
@@ -976,9 +973,6 @@ void atom_func_end_linear(uint8_t func_id, uint16_t x) {
     // ...Atomic function ends
 #ifdef DEBUG_TASK_INDICATOR
     P1OUT &= ~BIT0;
-#endif
-#ifdef DISCONNECT_SUPPLY_PROFILING
-    P1OUT &= ~BIT5;             // Reconnect supply, only valid when P1.5 is connected
 #endif
 #ifdef DEBUG_COMPLETION_INDICATOR
     // Indicate completion
