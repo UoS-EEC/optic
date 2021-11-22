@@ -5,3 +5,5 @@
 /results
 /scripts/process_profiling_results/*.txt
 /scripts/temp/
+/scripts/differentiate_pv_charging/*
+!/scripts/differentiate_pv_charging/differentiate.cpp

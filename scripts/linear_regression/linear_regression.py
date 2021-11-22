@@ -74,7 +74,7 @@ print("theta_0 =", theta_0)
 print("theta_1 =", theta_1)
 # print(size * sum_x2 - sum_x * sum_x)
 
-x = np.linspace(0, 4, 100)
+x = np.linspace(xx[0], xx[len(xx) - 1], 100)
 y = theta_0 + theta_1 * x
 plt.plot(x, y, 'r')
 plt.show()
