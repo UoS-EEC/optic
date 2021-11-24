@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-FOREACH(METHOD "opta" "debs")
+FOREACH(METHOD "opta" "debs" "samoyed")
     set(TARGET_NAME "aes-${METHOD}")
     add_executable(
         ${TARGET_NAME}

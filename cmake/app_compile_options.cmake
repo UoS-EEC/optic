@@ -39,6 +39,12 @@ ELSEIF(${METHOD} STREQUAL "debs")
         PRIVATE debs
         PRIVATE mul_f5
     )
+ELSEIF(${METHOD} STREQUAL "samoyed")
+    target_link_libraries(
+        ${TARGET_NAME}
+        PRIVATE samoyed
+        PRIVATE mul_f5
+    )
 ENDIF()
 
 

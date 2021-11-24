@@ -2,18 +2,14 @@
 // All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#ifndef LIB_DEBS_CONFIG_H_
-#define LIB_DEBS_CONFIG_H_
+#ifndef LIB_SAMOYED_CONFIG_H_
+#define LIB_SAMOYED_CONFIG_H_
 
-#include <stdint.h>         // For uint8__t type
-
-// #define PROFILING           // Whether profiling
-// #define DISCONNECT_SUPPLY_PROFILING     // Whether disconnect supply when profiling
-                                        // Connect P1.5 to the short-circuiting gate to actually disconnect
+#include <stdint.h>
 
 #define COMPARATOR_DELAY            __delay_cycles(280)     // 35us
-#define DEFAULT_HI_THRESHOLD        56      // See table below
-#define DEFAULT_LO_THRESHOLD        95      // See table below
+#define DEFAULT_HI_THRESHOLD        15      // See table below
+#define DEFAULT_LO_THRESHOLD        116     // See table below
 
 // #define DEBUG_GPIO
 // #define DEBUG_UART
@@ -154,4 +150,4 @@
 //       127 : 1.700
 //       128 : 1.692
 
-#endif  // LIB_DEBS_CONFIG_H_
+#endif  // LIB_SAMOYED_CONFIG_H_

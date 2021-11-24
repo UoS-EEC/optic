@@ -60,7 +60,7 @@ AtomFuncState PERSISTENT atom_state[ATOM_FUNC_NUM];
 
 // Control signals
 bool PERSISTENT snapshot_valid = false;
-bool PERSISTENT suspending = false;          // From backup: 1, from restore: 0
+// bool PERSISTENT suspending = false;          // From backup: 1, from restore: 0
 bool profiling;     // A profiling state indicator
                     // ..redundant but makes the code clearer
 

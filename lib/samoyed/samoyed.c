@@ -7,7 +7,7 @@
 #include <stddef.h>
 
 #include "lib/ips.h"
-#include "lib/debs/config.h"
+#include "lib/samoyed/config.h"
 
 // Header for radio init functions
 #ifdef RADIO
@@ -25,13 +25,6 @@ extern uint8_t __bootstackend;
 extern uint8_t __bssstart, __bssend;
 extern uint8_t __ramtext_low, __ramtext_high, __ramtext_loadLow;
 extern uint8_t __stack, __stackend;
-
-#define PERSISTENT __attribute__((section(".persistent")))
-
-// Profiling parameters
-uint16_t adc_r1;
-uint16_t adc_r2;
-uint16_t d_v_discharge;
 
 void __attribute__((section(".ramtext"), naked))
 fastmemcpy(uint8_t *dst, uint8_t *src, size_t len) {
@@ -93,55 +86,6 @@ static void gpio_init(void) {
     PJDIR = 0xff;
 }
 
-#ifdef PROFILING
-static void adc12_init(void) {
-    ADC12CTL0 &= ~ADC12ENC;     // Stop conversion
-    ADC12CTL0 &= ~ADC12ON;      // Turn off
-
-    // Turning on REF makes ADC reading ~50us faster
-    // ..but draw ~20uA more quiescent current
-    // while (REFCTL0 & REFGENBUSY) {}
-    // REFCTL0 = REFVSEL_1 |
-    //           REFON_1;          // REF ON
-    REFCTL0 = REFVSEL_1;        // 2.0V reference
-
-    // Configure ADC12
-    ADC12CTL0 = ADC12SHT0_0;
-    ADC12CTL1 = ADC12PDIV_1 |   // Predivide by 4, from ~4.8MHz MODOSC
-                ADC12SHP;       // SAMPCON is from the sampling timer
-    ADC12CTL2 = ADC12RES_2  |   // Default 12-bit conversion results
-                                // ..and 14 cycles conversion time
-                ADC12PWRMD_1;   // Low-power mode
-
-    // Use internal 1/2AVcc channel
-    ADC12CTL3 = ADC12BATMAP;
-    ADC12MCTL0 = ADC12INCH_31|          // Select ch A31
-                 ADC12VRSEL_1;          // VR+ = VREF buffered, VR- = Vss
-
-    // Use P3.1
-    // P3SEL1 |= BIT1;
-    // P3SEL0 |= BIT1;
-    // ADC12MCTL0 = ADC12INCH_13|          // Select ch A13 at P3.1
-    //              ADC12VRSEL_1;          // VR+ = VREF buffered, VR- = Vss
-
-    // while (!(REFCTL0 & REFGENRDY)) {}    // Wait for reference generator to settle
-    ADC12CTL0 |= ADC12ON;
-}
-
-// Take ~70us
-static uint16_t sample_vcc(void) {
-#ifdef DEBUG_ADC_INDICATOR
-    P8OUT |= BIT0;
-#endif
-    ADC12CTL0 |= ADC12ENC | ADC12SC;    // Start sampling & conversion
-    while (!(ADC12IFGR0 & BIT0)) {}
-#ifdef DEBUG_ADC_INDICATOR
-    P8OUT &= ~BIT0;
-#endif
-    return ADC12MEM0;
-}
-#endif
-
 // Initialise the external comparator
 static void ext_comp_init() {
     // Initialise SPI on UCA3 for the external comparator
@@ -197,21 +141,11 @@ void __attribute__((interrupt(PORT3_VECTOR))) Port3_ISR(void) {
     switch (__even_in_range(P3IV, P3IV__P3IFG7)) {
         case P3IV__NONE:    break;          // Vector  0:  No interrupt
         case P3IV__P3IFG0:                  // Vector  2:  P3.0 interrupt flag
-            if (P3IES & BIT0) {     // Falling edge, low threshold hit
-                set_threshold(DEFAULT_HI_THRESHOLD);
-                P3IES &= ~BIT0;     // Detect rising edge next
+            // Rising edge, high threshold hit
 #ifdef  DEBUG_GPIO
-                P1OUT |= BIT4;      // Debug
+            P1OUT &= ~BIT4;     // Debug
 #endif
-                __low_power_mode_3_on_exit();
-            } else {                // Rising edge, high threshold hit
-                set_threshold(DEFAULT_LO_THRESHOLD);
-                P3IES |= BIT0;      // Detect falling edge next
-#ifdef  DEBUG_GPIO
-                P1OUT &= ~BIT4;     // Debug
-#endif
-                __low_power_mode_off_on_exit();
-            }
+            __low_power_mode_off_on_exit();
             P3IFG &= ~BIT0;
             break;
         case P3IV__P3IFG1:  break;          // Vector  4:  P3.1 interrupt flag
@@ -228,61 +162,6 @@ void __attribute__((interrupt(PORT3_VECTOR))) Port3_ISR(void) {
 #endif
 }
 
-#ifdef DEBUG_UART
-void uart_init(void) {
-    // P2.0 UCA0TXD
-    // P2.1 UCA0RXD
-    P2SEL0 &= ~(BIT0 | BIT1);
-    P2SEL1 |=   BIT0 | BIT1;
-
-    /* 115200 bps on 8MHz SMCLK */
-    UCA0CTL1 |= UCSWRST;                        // Reset State
-    UCA0CTL1 |= UCSSEL__SMCLK;                  // SMCLK
-
-    // 115200 baud rate
-    // 8M / 115200 = 69.444444...
-    // 69.444 = 16 * 4 + 5 + 0.444444....
-    UCA0BR0 = 4;
-    UCA0BR1 = 0;
-    UCA0MCTLW = UCOS16 | UCBRF0 | UCBRF2 | 0x5500;  // UCBRF = 5, UCBRS = 0x55
-
-    UCA0CTL1 &= ~UCSWRST;
-}
-
-void uart_send_str(char* str) {
-    UCA0IFG &= ~UCTXIFG;
-    while (*str != '\0') {
-        UCA0TXBUF = *str++;
-        while (!(UCA0IFG & UCTXIFG)) {}
-        UCA0IFG &= ~UCTXIFG;
-    }
-}
-
-/* unsigned int to string, decimal format */
-char* uitoa_10(unsigned num, char* const str) {
-    // calculate decimal
-    char* ptr = str;
-    unsigned modulo;
-    do {
-        modulo = num % 10;
-        num /= 10;
-        *ptr++ = '0' + modulo;
-    } while (num);
-
-    // reverse string
-    *ptr-- = '\0';
-    char* ptr1 = str;
-    char tmp_char;
-    while (ptr1 < ptr) {
-        tmp_char = *ptr;
-        *ptr--= *ptr1;
-        *ptr1++ = tmp_char;
-    }
-
-    return str;
-}
-#endif
-
 // Boot function
 void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_boot() {
     WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
@@ -292,12 +171,6 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
     gpio_init();
     clock_init();
     ext_comp_init();
-#ifdef PROFILING
-    adc12_init();
-#endif
-#ifdef DEBUG_UART
-    uart_init();
-#endif
 
 #ifdef RADIO
     // Radio init functions
@@ -341,35 +214,6 @@ void __attribute__((interrupt(RESET_VECTOR), naked, used, optimize("O0"))) opta_
 // Disconnect supply profiling
 void atom_func_start(uint8_t func_id) {
     DISABLE_EXTCOMP_INTERRUPT;
-
-    // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
-    // ..or continue directly if (Vcc > adapt_threshold)
-    set_threshold(DEFAULT_HI_THRESHOLD);
-    COMPARATOR_DELAY;
-    if (P3IN & BIT0) {          // Enough budget
-        set_threshold(DEFAULT_LO_THRESHOLD);
-    } else {                    // Not enough
-        P3IFG &= ~BIT0;         // Clear pending high-to-low interrupt
-        P3IES &= ~BIT0;         // Detect rising edge next
-        ENABLE_EXTCOMP_INTERRUPT;
-#ifdef  DEBUG_GPIO
-        P1OUT |= BIT4;      // Debug
-#endif
-        // Sleep and wait for energy refills...
-        __low_power_mode_3();
-        __nop();
-        // ... Wake from the ISR when adapt_threshold is hit
-        DISABLE_EXTCOMP_INTERRUPT;
-    }
-
-    // *** Charging cycle ends, discharging cycle starts ***
-#ifdef DISCONNECT_SUPPLY_PROFILING
-    P1OUT |= BIT5;      // Disconnect supply
-#endif
-#ifdef PROFILING
-    // Take a Vcc reading, get Delta V_charge
-    adc_r2 = sample_vcc();
-#endif
     // Run the atomic function...
 #ifdef DEBUG_TASK_INDICATOR
     P1OUT |= BIT0;  // Debug
@@ -387,27 +231,6 @@ void atom_func_end(uint8_t func_id) {
     __delay_cycles(0xF);
     P7OUT &= ~BIT1;
 #endif
-    // *** Discharging cycle ends ***
-#ifdef PROFILING
-    // Take a Vcc reading, get Delta V_exe
-    adc_r1 = sample_vcc();
-    d_v_discharge = adc_r2 - adc_r1;
-#endif
-#ifdef DISCONNECT_SUPPLY_PROFILING
-    P1OUT &= ~BIT5;     // Reconnect supply
-#endif
-
-#ifdef DEBUG_UART
-    // UART debug info
-    char str_buffer[20];
-    uart_send_str(uitoa_10(d_v_discharge, str_buffer));
-    uart_send_str(" ");
-    uart_send_str(uitoa_10((uint16_t)adc_r2, str_buffer));
-    uart_send_str(" ");
-    uart_send_str(uitoa_10((uint16_t)adc_r1, str_buffer));
-    uart_send_str("\n\r");
-#endif
-    if (P3IN & BIT0) P3IFG &= ~BIT0;  // Prevent fake interrupt when Vcc > Vtarget_end here
     ENABLE_EXTCOMP_INTERRUPT;
 }
 
