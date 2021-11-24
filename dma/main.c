@@ -4,14 +4,6 @@
 
 #include <msp430fr5994.h>
 #include "dma/dma.h"
-#ifdef OPTA
-#include "opta/ic.h"
-#elif defined(DEBS)
-#include "debs/ic.h"
-#else
-#error Specify a method.
-#endif
-
 
 unsigned char __attribute__((section(".persistent"))) input[4096] =
     "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo "

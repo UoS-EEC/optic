@@ -8,9 +8,9 @@ set(TARGET_NAME "debs")
 
 add_library(
     ${TARGET_NAME}
-    ic.c
-    ic.h
+    debs.c
     config.h
+    ${PROJECT_SOURCE_DIR}/lib/ips.h
 )
 
 include(${PROJECT_SOURCE_DIR}/cmake/lib_compile_options.cmake)

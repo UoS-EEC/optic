@@ -4,13 +4,7 @@
 
 #include "dma/dma.h"
 #include <msp430fr5994.h>
-#ifdef OPTA
-#include "opta/ic.h"
-#elif defined(DEBS)
-#include "debs/ic.h"
-#else
-#error Specify a method.
-#endif
+#include "lib/ips.h"
 
 void dma(uint8_t* src, uint8_t* dst, uint16_t sz) {
     atom_func_start(DMA);

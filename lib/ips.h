@@ -2,15 +2,13 @@
 // All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#ifndef DEBS_IC_H_
-#define DEBS_IC_H_
+#ifndef LIB_IPS_H_
+#define LIB_IPS_H_
 
 #include <stdint.h>
 
 void atom_func_start(uint8_t func_id);
 void atom_func_end(uint8_t func_id);
-
-// Pseudo functions just for convenience
 void atom_func_start_linear(uint8_t func_id, uint16_t param);
 void atom_func_end_linear(uint8_t func_id, uint16_t param);
 
@@ -31,4 +29,4 @@ void atom_func_end_linear(uint8_t func_id, uint16_t param);
 #define ATOM_FUNC_NUM       2
 
 
-#endif  // DEBS_IC_H_
+#endif  // LIB_IPS_H_

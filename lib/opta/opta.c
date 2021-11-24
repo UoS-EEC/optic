@@ -2,13 +2,12 @@
 // All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#include "opta/ic.h"
-
 #include <msp430fr5994.h>
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "opta/config.h"
+#include "lib/ips.h"
+#include "lib/opta/config.h"
 
 // Header for radio init functions
 #ifdef RADIO

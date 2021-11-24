@@ -2,13 +2,12 @@
 // All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#include "debs/ic.h"
-
 #include <msp430fr5994.h>
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "debs/config.h"
+#include "lib/ips.h"
+#include "lib/debs/config.h"
 
 // Header for radio init functions
 #ifdef RADIO

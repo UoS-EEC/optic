@@ -10,26 +10,13 @@ target_compile_options(
     PRIVATE -mmcu=${DEVICE} 
     PRIVATE -O0
     PRIVATE -msmall
-    PRIVATE -g                              # Generate gdb debug info
+    # PRIVATE -g                              # Generate gdb debug info
     PRIVATE -mhwmult=f5series
     PRIVATE -Wall
     PRIVATE -fno-zero-initialized-in-bss    # We don't want to zero out whole bss on every boot
     PRIVATE -fdata-sections                 # Separate data from code
     PRIVATE -ffunction-sections             # Separate code into translation units
 )
-
-IF(${METHOD} STREQUAL "opta")
-    target_compile_definitions(
-        ${TARGET_NAME}
-        PUBLIC OPTA
-    )
-ELSEIF(${METHOD} STREQUAL "debs")
-    target_compile_definitions(
-        ${TARGET_NAME}
-        PUBLIC DEBS
-    )
-ENDIF()
-
 
 # linker
 target_link_directories(
@@ -58,7 +45,7 @@ ENDIF()
 target_link_options(
     ${TARGET_NAME}
     # PRIVATE -T ${MSP430_GCC_DIR}/include/${DEVICE}.ld   # msp430 original linker command file
-    PRIVATE -T ${PROJECT_SOURCE_DIR}/support/${DEVICE}.ld
+    PRIVATE -T ${PROJECT_SOURCE_DIR}/lib/${DEVICE}.ld
     PRIVATE -T ${MSP430_GCC_DIR}/include/${DEVICE}_symbols.ld
     PRIVATE -nostartfiles
     PRIVATE -Wl,--gc-sections               # Discard unused functions

@@ -8,9 +8,9 @@ set(TARGET_NAME "opta")
 
 add_library(
     ${TARGET_NAME}
-    ic.c
-    ic.h
+    opta.c
     config.h
+    ${PROJECT_SOURCE_DIR}/lib/ips.h
 )
 
 include(${PROJECT_SOURCE_DIR}/cmake/lib_compile_options.cmake)

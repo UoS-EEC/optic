@@ -13,13 +13,7 @@
 #include "radio/msp_nrf24.h"
 #include "radio/nRF24L01.h"
 
-#ifdef OPTA
-#include "opta/ic.h"
-#elif defined(DEBS)
-#include "debs/ic.h"
-#else
-#error Specify a method.
-#endif
+#include "lib/ips.h"
 
 uint8_t payload[32] = "Hiya Baobeie, how are you today?";
 uint8_t addr[5] = "latte";

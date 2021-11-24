@@ -2,8 +2,8 @@
 // All rights reserved.
 // SPDX-License-Identifier: MIT
 
-#ifndef OPTA_CONFIG_H_
-#define OPTA_CONFIG_H_
+#ifndef LIB_DEBS_CONFIG_H_
+#define LIB_DEBS_CONFIG_H_
 
 #include <stdint.h>         // For uint8__t type
 
@@ -17,21 +17,15 @@
 #define BSS_SIZE    0x0800  // at most 2KB
 
 #define MAX_ADC_READING 4095
+#define MAX_COMPE_RTAP  32  // Max comparator E resistor tap setting
+#define UNIT_COMPE_ADC  128
 
-// Disconnect supply when profiling
-// Connect P1.5 to the short-circuiting gate to actually disconnect
-// #define DISCONNECT_SUPPLY_PROFILING
+
+// #define PROFILING           // Whether profiling
+// #define DISCONNECT_SUPPLY_PROFILING     // Whether disconnect supply when profiling
+                                        // Connect P1.5 to the short-circuiting gate to actually disconnect
 
 #define COMPARATOR_DELAY            __delay_cycles(280)     // 35us
-
-#define DEFAULT_HI_THRESHOLD        65      // Value from threshold table
-#define DEFAULT_LO_THRESHOLD        95      // Value from threshold table
-                                            // Should be 2V
-                                            // otherwise our ADC doesn't work
-#define PROFILING_THRESHOLD         31      // Index from threshold table, initial threshold
-#define FIXED_THRESHOLD             35      // Used in test
-#define THRESHOLD_TABLE_MAX_INDEX   38
-#define ADC_STEP                    32
 
 // Target end threshold: 95 Voltage: 1.999 V
 // Threshold convert table:
@@ -89,36 +83,16 @@ uint8_t adc_to_threshold[51] = {
     14,     //  50, 3.601V
 };
 
-
-#define MIN_PROFILING_TIMER_CNT     4
-// #define V_EXE_HISTORY_SIZE          3   // Better be < 10
-#define DELAY_COUNTER               5   // Should be > 1, otherwise comment
-
-#define LINEAR_ADAPTATION
-#ifdef LINEAR_ADAPTATION
-
-// #define LINEAR_FIT_OVERHEAD
-// #define METHOD1
-#define METHOD2
-#if defined(METHOD1)
-#define HIST_SIZE                   5
-#define DELAY_COUNTER_LINEAR        10
-#elif defined(METHOD2)
-#else
-#error Specify a linear adaptation method.
-#endif
-
-
-
-#endif
+#define DEFAULT_HI_THRESHOLD        56      // See table above
+#define DEFAULT_LO_THRESHOLD        96      // See table above
 
 
 // #define DEBUG_GPIO
 // #define DEBUG_UART
-// #define DEBUG_COMPLETION_INDICATOR
+#define DEBUG_COMPLETION_INDICATOR
 #define DEBUG_TASK_INDICATOR
 // #define DEBUG_ADC_INDICATOR
 
 // #define RADIO
 
-#endif  // OPTA_CONFIG_H_
+#endif  // LIB_DEBS_CONFIG_H_
