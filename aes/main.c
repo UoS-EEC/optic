@@ -139,10 +139,8 @@ unsigned char __attribute__((section(".persistent"))) input[4096] =
 unsigned char __attribute__((section(".persistent"))) output[4096];
 // unsigned char __attribute__((section(".persistent"))) output2[4096];
 
-
-// uint8_t __attribute__((section(".persistent"))) rand[50] = {4, 13, 5, 5, 4, 6, 8, 8, 14, 10, 12, 11, 8, 11, 9, 11, 9, 5, 12, 6, 9, 13, 6, 13, 5, 9, 11, 12, 11, 9, 11, 9, 6, 13, 14, 5, 6, 13, 7, 4, 15, 13, 7, 10, 4, 8, 7, 9, 10, 5};
-uint8_t __attribute__((section(".persistent"))) rand[50] = {3, 1, 9, 2, 15, 4, 2, 4, 3, 11, 9, 8, 3, 1, 14, 15, 11, 5, 14, 7, 9, 14, 8, 5, 6, 15, 11, 6, 10, 5, 4, 15, 4, 15, 12, 1, 10, 14, 3, 8, 10, 9, 3, 2, 1, 5, 1, 14, 14, 5};
-uint8_t __attribute__((section(".persistent"))) rand_i = 0;
+uint8_t __attribute__((section(".persistent"))) rd_arr[50] = {15, 5, 7, 11, 13, 5, 3, 7, 3, 5, 12, 8, 4, 6, 10, 13, 8, 4, 5, 5, 7, 4, 2, 7, 10, 14, 5, 9, 6, 8, 9, 14, 5, 12, 10, 11, 15, 4, 3, 11, 6, 2, 10, 7, 6, 10, 8, 7, 9, 11};
+uint8_t __attribute__((section(".persistent"))) rd_i = 0;
 
 // void dummy_function(uint16_t cnt) {
 //     atom_func_start_linear(0, cnt);
@@ -184,8 +182,8 @@ int main(void) {
     // uart_init();    // Init UART for printing
     // uint16_t j = 1;  // For dummy function test
     for (;;) {
-        aes_128_enc(key, iv, input, output, 16 * rand[rand_i]);
-        if (++rand_i == 50) rand_i = 0;
+        aes_128_enc(key, iv, input, output, 16 * rd_arr[rd_i]);
+        if (++rd_i == 50) rd_i = 0;
         // ******* Dummy function test *******
         // dummy_function(j);
         // if (++j == 10) {

@@ -887,7 +887,7 @@ uint16_t PERSISTENT x_min = 0xFFFF;
 uint16_t PERSISTENT x_max = 0x0;
 uint16_t PERSISTENT y_min;
 uint16_t PERSISTENT y_max;
-uint16_t PERSISTENT theta_0 = ADC_STEP * PROFILING_THRESHOLD;   // Intercept
+uint16_t PERSISTENT theta_0 = PROFILING_THRESHOLD;   // Intercept
 uint16_t PERSISTENT theta_1 = 0;    // Slope
 
 void atom_func_start_linear(uint8_t func_id, uint16_t x) {
@@ -898,14 +898,14 @@ void atom_func_start_linear(uint8_t func_id, uint16_t x) {
     // If the task failed last time, increment theta_0
     if (atom_state[func_id].check_fail) {
         atom_state[func_id].check_fail = false;
-        theta_0 += ADC_STEP;
+        theta_0++;
         /** TODO: check the limit of adaptive_threshold **/
     }
 
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
     profiling = false;          // Profiling disabled by default
-    set_threshold(adc_to_threshold[(theta_0 + x * theta_1) / ADC_STEP]);
+    set_threshold(adc_to_threshold[(x * theta_1 / ADC_STEP) + theta_0]);
     COMPARATOR_DELAY;
     if (P3IN & BIT0) {          // Enough energy
         set_threshold(DEFAULT_LO_THRESHOLD);
@@ -988,7 +988,7 @@ void atom_func_end_linear(uint8_t func_id, uint16_t x) {
     atom_state[func_id].check_fail = false;     // Succefully complete
     // If target end threshold is violated, though didn't die (1.8V < Vcc < Vtarget_end)
     if ((P3IN & BIT0) == 0) {
-        theta_0 += ADC_STEP;
+        theta_0++;
         profiling = false;
         TA0CTL &= ~MC;          // Stop Timer A0
     }
@@ -1002,9 +1002,9 @@ void atom_func_end_linear(uint8_t func_id, uint16_t x) {
         v_exe = (uint16_t) ((((timer_cnt2 * 0x100) / timer_cnt1) * d_v_charge) / 0x100)
                 + d_v_discharge;
 
-        if (v_exe < MAX_ADC_READING) {  // Discard illegal results >= MAX_ADC_READING
+        // if (v_exe < MAX_ADC_READING) {      // Discard illegal results >= MAX_ADC_READING
 #ifdef LINEAR_FIT_OVERHEAD
-                P8OUT |= BIT1;
+            P8OUT |= BIT1;
 #endif
             if (x <= x_min) {
                 y_min = v_exe;
@@ -1018,19 +1018,19 @@ void atom_func_end_linear(uint8_t func_id, uint16_t x) {
             } else {
                 theta_1 = (y_max - y_min) / (x_max - x_min);
             }
-            theta_0 = y_min - theta_1 * x_min;
+            theta_0 = (y_min - theta_1 * x_min) / ADC_STEP;
 #ifdef LINEAR_FIT_OVERHEAD
-                P8OUT &= ~BIT1;
+            P8OUT &= ~BIT1;
 #endif
 #ifdef DEBUG_UART
-                // UART debug info
-                char str_buffer[20];
-                uart_send_str(uitoa_10((uint16_t) theta_0, str_buffer));
-                uart_send_str(" ");
-                uart_send_str(uitoa_10((uint16_t) theta_1, str_buffer));
-                uart_send_str("\n\r");
+            // UART debug info
+            char str_buffer[20];
+            uart_send_str(uitoa_10((uint16_t) theta_0, str_buffer));
+            uart_send_str(" ");
+            uart_send_str(uitoa_10((uint16_t) theta_1, str_buffer));
+            uart_send_str("\n\r");
 #endif
-        }
+        // }
     }
     if (P3IN & BIT0) P3IFG &= ~BIT0;  // Prevent fake interrupt when Vcc > Vtarget_end here
 #ifdef DEBUG_GPIO

@@ -97,7 +97,7 @@ uint8_t adc_to_threshold[51] = {
 #define LINEAR_ADAPTATION
 #ifdef LINEAR_ADAPTATION
 
-#define LINEAR_FIT_OVERHEAD
+// #define LINEAR_FIT_OVERHEAD
 // #define METHOD1
 #define METHOD2
 #if defined(METHOD1)
@@ -115,7 +115,7 @@ uint8_t adc_to_threshold[51] = {
 
 // #define DEBUG_GPIO
 // #define DEBUG_UART
-#define DEBUG_COMPLETION_INDICATOR
+// #define DEBUG_COMPLETION_INDICATOR
 #define DEBUG_TASK_INDICATOR
 // #define DEBUG_ADC_INDICATOR
 

@@ -84,7 +84,7 @@
 // };
 
 
-#define DEFAULT_HI_THRESHOLD        54      // See table above
+#define DEFAULT_HI_THRESHOLD        56      // See table above
 #define DEFAULT_LO_THRESHOLD        96      // See table above
 
 
