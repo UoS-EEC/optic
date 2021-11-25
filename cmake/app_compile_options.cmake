@@ -45,6 +45,24 @@ ELSEIF(${METHOD} STREQUAL "samoyed")
         PRIVATE samoyed
         PRIVATE mul_f5
     )
+ELSEIF(${METHOD} STREQUAL "optarf")
+    target_link_libraries(
+        ${TARGET_NAME}
+        PRIVATE optarf
+        PRIVATE mul_f5
+    )
+ELSEIF(${METHOD} STREQUAL "debsrf")
+    target_link_libraries(
+        ${TARGET_NAME}
+        PRIVATE debsrf
+        PRIVATE mul_f5
+    )
+ELSEIF(${METHOD} STREQUAL "samoyedrf")
+    target_link_libraries(
+        ${TARGET_NAME}
+        PRIVATE samoyedrf
+        PRIVATE mul_f5
+    )
 ENDIF()
 
 

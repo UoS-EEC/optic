@@ -14,3 +14,19 @@ add_library(
 )
 
 include(${PROJECT_SOURCE_DIR}/cmake/lib_compile_options.cmake)
+
+set(TARGET_NAME "samoyedrf")
+
+add_library(
+    ${TARGET_NAME}
+    samoyed.c
+    config.h
+    ${PROJECT_SOURCE_DIR}/lib/ips.h
+)
+
+target_compile_definitions(
+    ${TARGET_NAME}
+    PUBLIC RADIO
+)
+
+include(${PROJECT_SOURCE_DIR}/cmake/lib_compile_options.cmake)

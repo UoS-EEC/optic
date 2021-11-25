@@ -12,12 +12,12 @@
                                         // Connect P1.5 to the short-circuiting gate to actually disconnect
 
 #define COMPARATOR_DELAY            __delay_cycles(280)     // 35us
-#define DEFAULT_HI_THRESHOLD        56      // See table below
+#define DEFAULT_HI_THRESHOLD        47      // See table below
 #define DEFAULT_LO_THRESHOLD        95      // See table below
 
 // #define DEBUG_GPIO
 // #define DEBUG_UART
-#define DEBUG_COMPLETION_INDICATOR
+// #define DEBUG_COMPLETION_INDICATOR
 #define DEBUG_TASK_INDICATOR
 // #define DEBUG_ADC_INDICATOR
 

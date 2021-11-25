@@ -18,38 +18,32 @@
 uint8_t payload[32] = "Hiya Baobeie, how are you today?";
 uint8_t addr[5] = "latte";
 
-// Transmit a 32B payload through nrf24l01+
-void radio_tx_payload(uint8_t* payload) {
-    atom_func_start(RADIO_TX_PAYLOAD);
-    /*** Write payload to Tx Fifo ***/
-    // 1 level
-    nrf24_w_payload(payload, 32);
-    // 2 levels
-    // nrf24_wr_payload(dummy_payload, 32);
-    // 3 levels
-    // nrf24_wr_payload(dummy_payload, 32);
+// Transmit a payload (<= 96B) through nrf24l01+
+void radio_tx_payload(uint8_t* payload, uint8_t length) {
+    // atom_func_start(RADIO_TX_PAYLOAD);
+    atom_func_start_linear(RADIO_TX_PAYLOAD, length);
 
-    /*** Activate Tx ***/
-    nrf24_power_up();
-    // Set CE high for at least 10us (too short on this clone) to trigger Tx
-    // Goes back to Standby-1 when everything sent
+    // Write payload to TX fifo
+    uint8_t length_copy = length;
+    while (length_copy--) {
+        nrf24_w_payload(payload, 16);
+    }
+
+    nrf24_power_up();                           // Power up
+
     RF_TRX_BEGIN();
-    // If opearting at 8MHz...
-    __delay_cycles(80);  // ~10us for 1 level (32B)
-    // __delay_cycles(2400);  // ~300us for 2 levels (64B)
-    // __delay_cycles(3600);  // ~450us for 3 levels (96B)
+    nrf24_wait_tx_done();
     RF_TRX_END();
 
-    /*** Wait for Tx done ***/
-    nrf24_wait_tx_done();
-    // Clear power-up data sent flag
-    nrf24_wr_reg(RF24_STATUS, RF24_TX_DS);
-
-    /*** Power down ***/
-    nrf24_wr_reg(RF24_CONFIG, RF24_EN_CRC);
+    nrf24_wr_reg(RF24_STATUS, RF24_TX_DS);      // Clear power-up data sent flag
+    nrf24_wr_reg(RF24_CONFIG, RF24_EN_CRC);     // Power down
     __delay_cycles(1600);
-    atom_func_end(RADIO_TX_PAYLOAD);
+
+    // atom_func_end(RADIO_TX_PAYLOAD);
+    atom_func_end_linear(RADIO_TX_PAYLOAD, length);
 }
+
+uint8_t __attribute__((section(".persistent"))) i = 6;
 
 int main(void) {
     nrf24_init();           // Radio init
@@ -57,6 +51,9 @@ int main(void) {
     nrf24_enable_irq();     // Enable radio IRQ
 
     for (;;) {
-        radio_tx_payload(payload);
+        radio_tx_payload(payload, i);
+        if (--i == 0) {
+            i = 6;
+        }
     }
 }

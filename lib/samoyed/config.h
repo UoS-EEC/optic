@@ -8,13 +8,13 @@
 #include <stdint.h>
 
 #define COMPARATOR_DELAY            __delay_cycles(280)     // 35us
-#define DEFAULT_HI_THRESHOLD        15      // See table below
-#define DEFAULT_LO_THRESHOLD        116     // See table below
+#define DEFAULT_HI_THRESHOLD        43      // See table below
+// #define DEFAULT_LO_THRESHOLD        116     // See table below
 
 // #define DEBUG_GPIO
 // #define DEBUG_UART
 #define DEBUG_COMPLETION_INDICATOR
-#define DEBUG_TASK_INDICATOR
+// #define DEBUG_TASK_INDICATOR
 // #define DEBUG_ADC_INDICATOR
 
 // #define RADIO

@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-FOREACH(METHOD "opta" "debs" "samoyed")
+FOREACH(METHOD "optarf" "debsrf" "samoyedrf")
     set(TARGET_NAME "radio-${METHOD}")
     add_executable(
         ${TARGET_NAME}
