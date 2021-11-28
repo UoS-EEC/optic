@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import csv
 xx =[]
 yy = []
-filename = 'pv_curve_24Nov_1_1.csv'  # Modify filename to the relavant data
+filename = 'pv_curve.csv'  # Modify filename to the relavant data
 x_col = 0       # Modify index to the x column
 y_col = 1       # Modify index to the y column
 with open(filename) as csv_file:
@@ -37,8 +37,21 @@ plt.ylabel('Current (uA)')
 plt.xlabel('Voltage (V)')
 # plt.show()
 
-x_min = 0.2
-x_max = 4
+import math
+I_sc = 280
+V_oc = 3.03
+I_mpp = 240
+V_mpp = 2.3
+
+v = np.linspace(2.3, 3.1, 100)
+i = np.array([None] * 100)
+for ii in range(100):
+    i[ii] = I_sc * (1 - math.exp(math.log(1 - I_mpp / I_sc) * (v[ii] - V_oc) / (V_mpp - V_oc)))
+plt.plot(v, i)
+# plt.show()
+
+x_min = 0.1
+x_max = 2.3
 
 while xx[0] < x_min:
     xx.pop(0)

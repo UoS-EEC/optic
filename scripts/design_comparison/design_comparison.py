@@ -209,13 +209,21 @@ class DEBS(BaseIntermittent):
             else:                       # Still executing
                 self.t_remain = self.t_remain - t_step
 
+import math
+I_sc = 280
+V_oc = 3.03
+I_mpp = 240
+V_mpp = 2.3
+
 def pv_current(v):
     if v < 0:
-        return 123.9 * 1e-6
-    elif v > 4:
+        return 278.562e-6
+    elif 0 < v and v <= V_mpp:
+        return (-15.728 * v + 278.562) *1e-6
+    elif V_mpp < v and v <= V_oc:
+        return (I_sc * (1 - math.exp(math.log(1 - I_mpp / I_sc) * (v - V_oc) / (V_mpp - V_oc)))) * 1e-6
+    else:   # v > V_oc
         return 0
-    else:
-        return (-7.02 * v + 123.9) * 1e-6
 
 # Single test main
 def main_single():
