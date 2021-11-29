@@ -316,7 +316,7 @@ def main_single():
 
     ax1 = fig.add_subplot(gs[0, 0])
     ax1.plot(t_trace, v_trace_samoyed)
-    ax1.tick_params(direction='in', top=True, right=True, fontname="Times New Roman")
+    ax1.tick_params(direction='in', top=True, right=True)
     ax1.set_title('Samoyed', fontname="Times New Roman")
     ax1.set_xlabel('Time (s)', fontname="Times New Roman")
     ax1.set_ylabel('Voltage (V)', fontname="Times New Roman")
@@ -325,7 +325,7 @@ def main_single():
 
     ax2 = fig.add_subplot(gs[1, 0])
     ax2.plot(t_trace, v_trace_debs_high)
-    ax2.tick_params(direction='in', top=True, right=True, fontname="Times New Roman")
+    ax2.tick_params(direction='in', top=True, right=True)
     ax2.set_title('DEBS', fontname="Times New Roman")
     ax2.set_xlabel('Time (s)', fontname="Times New Roman")
     ax2.set_ylabel('Voltage (V)', fontname="Times New Roman")
@@ -334,7 +334,7 @@ def main_single():
 
     ax3 = fig.add_subplot(gs[2, 0])
     ax3.plot(t_trace, v_trace_repa)
-    ax3.tick_params(direction='in', top=True, right=True, fontname="Times New Roman")
+    ax3.tick_params(direction='in', top=True, right=True)
     ax3.set_title('Adaptive', fontname="Times New Roman")
     ax3.set_xlabel('Time (s)', fontname="Times New Roman")
     ax3.set_ylabel('Voltage (V)', fontname="Times New Roman")
