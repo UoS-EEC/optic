@@ -16,8 +16,10 @@ def charge_consumption(block) -> float:
 def run_time(block) -> float:
     return (0.02512329 * block + 0.07234669109095204) * 1e-3
 
-config_scale_v = [1, 1.185567, 1.262886]
-config_scale_t = [1, 1.178886, 1.328291]
+config_scale_v = [1, 1.185567, 1.262886]    # v_task scaled by key length
+config_scale_t = [1, 1.178886, 1.328291]    # runtime scaled by key length
+# config_scale_v = [1, 1, 1]
+# config_scale_t = [1, 1, 1]
 system_capacitance = 10e-6  # 10uF
 capacitance_reduction = 0
 
@@ -62,7 +64,7 @@ class BaseIntermittent:
         # Init parameters
         self.t_task = run_time(self.rd_data[self.rd_index]) * config_scale_t[self.rd_config[self.rd_index]]
         self.t_remain = self.t_task
-        self.v_task = charge_consumption(self.rd_data[self.rd_index] * config_scale_v[self.rd_config[self.rd_index]]) / self.c
+        self.v_task = charge_consumption(self.rd_data[self.rd_index]) * config_scale_v[self.rd_config[self.rd_index]] / self.c
         self.i_draw_exe = self.v_task * self.c / self.t_task
 
         # Index to the next task
@@ -133,7 +135,7 @@ class Samoyed(BaseIntermittent):
     def __init__(self, vcc_init, arr1, arr2) -> None:
         super().__init__(vcc_init,arr1,arr2)
         # Set up a fixed abundant energy threshold
-        self.v_th = 3.6     # Max operating voltage for MSP4305994
+        self.v_th = 2.9
     
     def update_state(self, t_step):
         # lpm or off
@@ -210,18 +212,22 @@ class DEBS(BaseIntermittent):
                 self.t_remain = self.t_remain - t_step
 
 import math
-I_sc = 280
-V_oc = 3.03
-I_mpp = 240
+I_sc = 276e-6
+V_oc = 3.05
+I_mpp = 237e-6
 V_mpp = 2.3
 
 def pv_current(v):
+    # Constant current model
+    # return 50e-6
+
+    # PV model
     if v < 0:
-        return 278.562e-6
+        return 276.10e-6
     elif 0 < v and v <= V_mpp:
-        return (-15.728 * v + 278.562) *1e-6
+        return (-16.25 * v + 276.10) * 1e-6
     elif V_mpp < v and v <= V_oc:
-        return (I_sc * (1 - math.exp(math.log(1 - I_mpp / I_sc) * (v - V_oc) / (V_mpp - V_oc)))) * 1e-6
+        return I_sc * (1 - math.exp(math.log(1 - I_mpp / I_sc) * (v - V_oc) / (V_mpp - V_oc)))
     else:   # v > V_oc
         return 0
 
@@ -236,12 +242,13 @@ def main_single():
     while i > 0:
         random_arr1.append(random.randint(1, 255))
         i -= 1
-    # Array 2 for randomized current draw
+    # Array 2 for randomized configurations (key length)
     random_arr2 = []
     # Random interger numbers in [0, 2] (representing 3 configurations)
     i = arr_len
     while i > 0:
-        random_arr2.append(random.randint(0, 2))
+        # random_arr2.append(random.randint(0, 2))
+        random_arr2.append(2)
         i -= 1
 
     vcc_init = 0
@@ -267,8 +274,7 @@ def main_single():
     samoyed_obj = Samoyed(vcc_samoyed, random_arr1, random_arr2)
     debs_low_v_task = charge_consumption(64) / system_capacitance
     debs_low_obj = DEBS(vcc_debs_low, random_arr1, random_arr2, debs_low_v_task)
-    # debs_high_v_task = charge_consumption(255) * config_scale_v[2] / (system_capacitance / 2)
-    debs_high_v_task = 1.79
+    debs_high_v_task = charge_consumption(255) * config_scale_v[2] / system_capacitance
     debs_high_obj = DEBS(vcc_debs_high, random_arr1, random_arr2, debs_high_v_task)
 
     while t < 2:  # Total simulation time in seconds
@@ -288,44 +294,52 @@ def main_single():
     print("Number of completions, failures\n")
     print("AdaptEnergy:", repa_obj.n_completion, repa_obj.n_failure)
     print("Samoyed:", samoyed_obj.n_completion, samoyed_obj.n_failure)
-    print("DEBS low: ", debs_low_obj.n_completion, debs_low_obj.n_failure)
-    print("DEBS high: ", debs_high_obj.n_completion, debs_high_obj.n_failure)
+    print("DEBS Low: ", debs_low_obj.n_completion, debs_low_obj.n_failure)
+    print("DEBS High: ", debs_high_obj.n_completion, debs_high_obj.n_failure)
+
+    print("Adaptive V_mean:", sum(v_trace_repa) / len(v_trace_repa))
+    print("DEBS High V_mean:", sum(v_trace_debs_high) / len(v_trace_debs_high))
+    print("Samoyed V_mean:", sum(v_trace_samoyed) / len(v_trace_samoyed))
 
     fig = plt.figure(constrained_layout=True)
-    gs = gridspec.GridSpec(ncols=2, nrows=2, figure=fig)
+    gs = gridspec.GridSpec(ncols=1, nrows=3, figure=fig)
     
 
-    ax0 = fig.add_subplot(gs[0, 0])
-    ax0.plot(t_trace, v_trace_debs_low)
-    ax0.set_title('DEBS Low')
-    ax0.set_xlabel('Time (s)')
-    ax0.set_ylabel('Voltage (V)')
-    ax0.set_xlim([0, 2])
-    ax0.set_ylim([0, 3.6])
+    # ax0 = fig.add_subplot(gs[0, 0])
+    # ax0.plot(t_trace, v_trace_debs_low)
+    # ax0.tick_params(direction='in', top=True, right=True)
+    # ax0.set_title('DEBS Low', fontname="Times New Roman")
+    # ax0.set_xlabel('Time (s)', fontname="Times New Roman")
+    # ax0.set_ylabel('Voltage (V)', fontname="Times New Roman")
+    # ax0.set_xlim([0, 2])
+    # ax0.set_ylim([0, 3.6])
 
-    ax1 = fig.add_subplot(gs[0, 1])
+    ax1 = fig.add_subplot(gs[0, 0])
     ax1.plot(t_trace, v_trace_samoyed)
-    ax1.set_title('Samoyed')
-    ax1.set_xlabel('Time (s)')
-    ax1.set_ylabel('Voltage (V)')
+    ax1.tick_params(direction='in', top=True, right=True, fontname="Times New Roman")
+    ax1.set_title('Samoyed', fontname="Times New Roman")
+    ax1.set_xlabel('Time (s)', fontname="Times New Roman")
+    ax1.set_ylabel('Voltage (V)', fontname="Times New Roman")
     ax1.set_xlim([0, 2])
-    ax1.set_ylim([0, 3.6])
+    ax1.set_ylim([1.5, 3])
 
     ax2 = fig.add_subplot(gs[1, 0])
     ax2.plot(t_trace, v_trace_debs_high)
-    ax2.set_title('DEBS High')
-    ax2.set_xlabel('Time (s)')
-    ax2.set_ylabel('Voltage (V)')
+    ax2.tick_params(direction='in', top=True, right=True, fontname="Times New Roman")
+    ax2.set_title('DEBS', fontname="Times New Roman")
+    ax2.set_xlabel('Time (s)', fontname="Times New Roman")
+    ax2.set_ylabel('Voltage (V)', fontname="Times New Roman")
     ax2.set_xlim([0, 2])
-    ax2.set_ylim([0, 3.6])
+    ax2.set_ylim([1.5, 3])
 
-    ax3 = fig.add_subplot(gs[1, 1])
+    ax3 = fig.add_subplot(gs[2, 0])
     ax3.plot(t_trace, v_trace_repa)
-    ax3.set_title('Adaptive')
-    ax3.set_xlabel('Time (s)')
-    ax3.set_ylabel('Voltage (V)')
+    ax3.tick_params(direction='in', top=True, right=True, fontname="Times New Roman")
+    ax3.set_title('Adaptive', fontname="Times New Roman")
+    ax3.set_xlabel('Time (s)', fontname="Times New Roman")
+    ax3.set_ylabel('Voltage (V)', fontname="Times New Roman")
     ax3.set_xlim([0, 2])
-    ax3.set_ylim([0, 3.6])
+    ax3.set_ylim([1.5, 3])
 
     # plt.show()
     plt.savefig('voltage_traces.pdf') 
@@ -347,15 +361,17 @@ def main_multi():
         # Generate random numbers
         arr_len = 1000
         # Array 1 for random data size
-        random_arr1 = []
+        # random_arr1 = [255]
         # Random integer numbers in [1, 255] (1-255 blocks, 16B per blocks)
+        random_arr1 =[]
         i = arr_len
         while i > 0:
             random_arr1.append(random.randint(1, 255))
             i -= 1
-        # Array 2 for randomized current draw
-        random_arr2 = []
+        # Array 2 for randomized configurations
+        # random_arr2 = [2]
         # Random interger numbers in [0, 2] (representing 3 configurations)
+        random_arr2 =[]
         i = arr_len
         while i > 0:
             random_arr2.append(random.randint(0, 2))
@@ -373,11 +389,10 @@ def main_multi():
         samoyed_obj = Samoyed(vcc_samoyed, random_arr1, random_arr2)
         debs_low_v_task = charge_consumption(64) / system_capacitance
         debs_low_obj = DEBS(vcc_debs_low, random_arr1, random_arr2, debs_low_v_task)
-        # debs_high_v_task = charge_consumption(255) * config_scale_v[2] / (system_capacitance / 2)
-        debs_high_v_task = 1.79
+        debs_high_v_task = charge_consumption(255) * config_scale_v[2] / system_capacitance
         debs_high_obj = DEBS(vcc_debs_high, random_arr1, random_arr2, debs_high_v_task)
 
-        while t < 2:  # Total simulation time in seconds
+        while t < 10:  # Total simulation time in seconds
             vcc_repa = repa_obj.update(pv_current(vcc_repa), t_step)
             vcc_samoyed = samoyed_obj.update(pv_current(vcc_samoyed), t_step)
             vcc_debs_low = debs_low_obj.update(pv_current(vcc_debs_low), t_step)
@@ -435,6 +450,8 @@ def main_multi():
     repa_fail_err_p = max(repa_failure) - repa_fail_mean
     repa_fail_err_m = repa_fail_mean - min(repa_failure)
 
+    # print(debs_low_perf_mean, ",", samoyed_perf_mean, ",", debs_high_perf_mean, ",", repa_perf_mean)
+
     print("AdaptEnergy:", repa_completion, repa_failure)
     print(repa_perf_mean, max(repa_completion), min(repa_completion))
     print(sum(repa_failure) / len(repa_failure), max(repa_failure), min(repa_failure))
@@ -463,4 +480,9 @@ repa_fail_mean, ",", repa_fail_err_p, ",", repa_fail_err_m)
 if __name__ == "__main__":
     main_single()
     # main_multi()
+
+    # for i in range(10):
+    #     capacitance_reduction = i * 0.1
+    #     print("Capacitance:", capacitance_reduction)
+    #     main_multi()
 # %%

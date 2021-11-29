@@ -38,9 +38,9 @@ plt.xlabel('Voltage (V)')
 # plt.show()
 
 import math
-I_sc = 280
-V_oc = 3.03
-I_mpp = 240
+I_sc = 276
+V_oc = 3.05
+I_mpp = 237
 V_mpp = 2.3
 
 v = np.linspace(2.3, 3.1, 100)
@@ -99,6 +99,8 @@ print("theta_1 =", theta_1)
 x = np.linspace(xx[0], xx[len(xx) - 1], 100)
 y = theta_0 + theta_1 * x
 plt.plot(x, y, 'r')
+plt.xlim((0,3.1))
+plt.ylim((0,300))
 plt.show()
 
 #%%
