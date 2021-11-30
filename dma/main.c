@@ -69,14 +69,21 @@ unsigned char __attribute__((section(".persistent"))) input[4096] =
 
 unsigned char __attribute__((section(".persistent"))) output[4096];
 
+uint8_t __attribute__((section(".persistent"))) rd_arr[50] = {16, 4, 15, 15, 7, 2, 10, 7, 11, 15, 2, 16, 2, 1, 16, 5, 11, 15, 14, 13, 13, 2, 5, 4, 1, 3, 6, 1, 8, 2, 14, 7, 14, 8, 14, 10, 2, 5, 6, 8, 10, 1, 8, 10, 11, 2, 2, 12, 12, 13};
+uint8_t __attribute__((section(".persistent"))) rd_i = 0;
 
 int main(void) {
     for (;;) {
         // ******* DMA module test ******
-        dma(input, output, 2048);   // 4096 bytes
+        // dma(input, output, 2048);   // 4096 bytes
         // dma(input, output, 1024);   // 2048 bytes
         // dma(input, output, 512);    // 1024 bytes
         // __delay_cycles(8000);
+
+        dma(input, output, rd_arr[rd_i] * 128);
+        if (++rd_i == 50) {
+            rd_i = 0;
+        }
     }
 
     return 0;

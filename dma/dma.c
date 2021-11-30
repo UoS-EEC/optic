@@ -7,7 +7,8 @@
 #include "lib/ips.h"
 
 void dma(uint8_t* src, uint8_t* dst, uint16_t sz) {
-    atom_func_start(DMA);
+    // atom_func_start(DMA);
+    atom_func_start_linear(DMA, sz / 128);
 
     // Configure DMA channel 0
     __data20_write_long((uintptr_t) &DMA0SA, (uintptr_t) src);
@@ -24,5 +25,6 @@ void dma(uint8_t* src, uint8_t* dst, uint16_t sz) {
     while (!(DMA0CTL & DMAIFG)) {}
     DMA0CTL &= ~DMAIFG;
 
-    atom_func_end(DMA);
+    // atom_func_end(DMA);
+    atom_func_end_linear(DMA, sz / 128);
 }

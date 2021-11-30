@@ -8,7 +8,7 @@ target_compile_options(
     PRIVATE -mmcu=${DEVICE} 
     PRIVATE -O0
     PRIVATE -msmall
-    # PRIVATE -g                              # Generate gdb debug info
+    PRIVATE -g                              # Generate gdb debug info
     PRIVATE -mhwmult=f5series
     PRIVATE -Wall
     PRIVATE -fno-zero-initialized-in-bss    # We don't want to zero out whole bss on every boot

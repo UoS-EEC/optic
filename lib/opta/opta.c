@@ -394,6 +394,7 @@ void __attribute__((interrupt(PORT3_VECTOR))) Port3_ISR(void) {
 }
 
 #ifdef DEBUG_UART
+char str_buffer[20];
 void uart_init(void) {
     // P2.0 UCA0TXD
     // P2.1 UCA0RXD
@@ -881,7 +882,6 @@ void atom_func_end_linear(uint8_t func_id, uint16_t x) {
 #elif defined(METHOD2)
 // Update linear parameters when x_min or /x_max is updated
 
-/** TODO: add necessary parameters **/
 uint16_t PERSISTENT x_min = 0xFFFF;
 uint16_t PERSISTENT x_max = 0x0;
 uint16_t PERSISTENT y_min;
@@ -904,17 +904,20 @@ void atom_func_start_linear(uint8_t func_id, uint16_t x) {
     // Sleep here if (Vcc < adapt_threshold) until adapt_threshold is hit
     // ..or continue directly if (Vcc > adapt_threshold)
     profiling = false;          // Profiling disabled by default
-    set_threshold(adc_to_threshold[(x * theta_1 / ADC_STEP) + theta_0]);
+
+    uint8_t temp = (uint8_t) ((x * theta_1 / ADC_STEP) + theta_0);
+    if (temp > THRESHOLD_TABLE_MAX_INDEX) {
+        temp = THRESHOLD_TABLE_MAX_INDEX;
+    }
+    set_threshold(adc_to_threshold[temp]);
     COMPARATOR_DELAY;
     if (P3IN & BIT0) {          // Enough energy
         set_threshold(DEFAULT_LO_THRESHOLD);
     } else {                    // Not enough energy
         if (x <= x_min) {
-            x_min = x;
             profiling = true;
         }
         if (x >= x_max) {
-            x_max = x;
             profiling = true;
         }
         if (profiling) {
@@ -930,7 +933,7 @@ void atom_func_start_linear(uint8_t func_id, uint16_t x) {
 #ifdef DEBUG_GPIO
         P7OUT &= ~BIT0;         // Indicate overhead
 #endif
-#ifdef  DEBUG_GPIO
+#ifdef DEBUG_GPIO
         P1OUT |= BIT4;          // Debug
 #endif
         // Sleep and wait for energy refills...
@@ -950,7 +953,6 @@ void atom_func_start_linear(uint8_t func_id, uint16_t x) {
                 // Continue profiling
                 // Take a Vcc reading, get Delta V_charge
                 adc_r2 = sample_vcc();
-                d_v_charge = adc_r2 - adc_r1;   // r2 > r1 should always be true
             } else {
                 // Charging time too short, stop profiling
                 profiling = false;
@@ -1006,9 +1008,11 @@ void atom_func_end_linear(uint8_t func_id, uint16_t x) {
             P8OUT |= BIT1;
 #endif
             if (x <= x_min) {
+                x_min = x;
                 y_min = v_exe;
             }
             if (x >= x_max) {
+                x_max = x;
                 y_max = v_exe;
             }
             // Update theta_0 and theta_1

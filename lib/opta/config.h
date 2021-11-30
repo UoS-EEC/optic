@@ -24,18 +24,18 @@
 
 #define COMPARATOR_DELAY            __delay_cycles(280)     // 35us
 
-#define DEFAULT_HI_THRESHOLD        65      // Value from threshold table
+#define DEFAULT_HI_THRESHOLD        56      // Value from threshold table
 #define DEFAULT_LO_THRESHOLD        95      // Value from threshold table
                                             // Should be 2V
                                             // otherwise our ADC doesn't work
-#define PROFILING_THRESHOLD         31      // Index from threshold table, initial threshold
+#define PROFILING_THRESHOLD         21      // Index from threshold table, initial threshold
 #define FIXED_THRESHOLD             35      // Used in test
-#define THRESHOLD_TABLE_MAX_INDEX   38
+#define THRESHOLD_TABLE_MAX_INDEX   28
 #define ADC_STEP                    32
 
 // Target end threshold: 95 Voltage: 1.999 V
 // Threshold convert table:
-uint8_t adc_to_threshold[51] = {
+uint8_t __attribute__((section(".persistent"))) adc_to_threshold[51] = {
     92,     //   0, 2.032V
     89,     //   1, 2.067V
     87,     //   2, 2.091V
@@ -97,7 +97,7 @@ uint8_t adc_to_threshold[51] = {
 #define LINEAR_ADAPTATION
 #ifdef LINEAR_ADAPTATION
 
-// #define LINEAR_FIT_OVERHEAD
+#define LINEAR_FIT_OVERHEAD
 // #define METHOD1
 #define METHOD2
 #if defined(METHOD1)
@@ -114,7 +114,7 @@ uint8_t adc_to_threshold[51] = {
 
 
 // #define DEBUG_GPIO
-// #define DEBUG_UART
+#define DEBUG_UART
 // #define DEBUG_COMPLETION_INDICATOR
 #define DEBUG_TASK_INDICATOR
 // #define DEBUG_ADC_INDICATOR

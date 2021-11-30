@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 #define COMPARATOR_DELAY            __delay_cycles(280)     // 35us
-#define DEFAULT_HI_THRESHOLD        43      // See table below
+#define DEFAULT_HI_THRESHOLD        48      // See table below
 // #define DEFAULT_LO_THRESHOLD        116     // See table below
 
 // #define DEBUG_GPIO

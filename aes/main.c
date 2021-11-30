@@ -176,7 +176,8 @@ int main(void) {
     // uart_init();    // Init UART for printing
     // uint16_t j = 1;  // For dummy function test
     for (;;) {
-        aes_128_enc(key, iv, input, output, 16 * rd_arr[rd_i]);
+        // aes_128_enc(key, iv, input, output, 16 * rd_arr[rd_i]);
+        aes_256_enc(key, iv, input, output, 16 * rd_arr[rd_i]);
         if (++rd_i == 50) rd_i = 0;
         // ******* Dummy function test *******
         // dummy_function(j);
