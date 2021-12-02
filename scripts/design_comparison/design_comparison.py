@@ -326,7 +326,7 @@ def main_single():
     ax2 = fig.add_subplot(gs[1, 0])
     ax2.plot(t_trace, v_trace_debs_high)
     ax2.tick_params(direction='in', top=True, right=True)
-    ax2.set_title('DEBS', fontname="Times New Roman")
+    ax2.set_title('DEBS High', fontname="Times New Roman")
     ax2.set_xlabel('Time (s)', fontname="Times New Roman")
     ax2.set_ylabel('Voltage (V)', fontname="Times New Roman")
     ax2.set_xlim([0, 2])
