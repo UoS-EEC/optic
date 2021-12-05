@@ -4,6 +4,8 @@
 /test
 /results
 /scripts/process_profiling_results/*.txt
+/scripts/design_comparison/*.txt
+/scripts/linear_regression/*.csv
 /scripts/temp/
 /scripts/differentiate_pv_charging/*
 !/scripts/differentiate_pv_charging/differentiate.cpp
