@@ -133,8 +133,8 @@ unsigned char __attribute__((section(".persistent"))) input[4096] =
 unsigned char __attribute__((section(".persistent"))) output[4096];
 // unsigned char __attribute__((section(".persistent"))) output2[4096];
 
-uint8_t __attribute__((section(".persistent"))) rd_arr[50] = {15, 5, 7, 11, 13, 5, 3, 7, 3, 5, 12, 8, 4, 6, 10, 13, 8, 4, 5, 5, 7, 4, 2, 7, 10, 14, 5, 9, 6, 8, 9, 14, 5, 12, 10, 11, 15, 4, 3, 11, 6, 2, 10, 7, 6, 10, 8, 7, 9, 11};
-uint8_t __attribute__((section(".persistent"))) rd_i = 0;
+// uint8_t __attribute__((section(".persistent"))) rd_arr[50] = {15, 5, 7, 11, 13, 5, 3, 7, 3, 5, 12, 8, 4, 6, 10, 13, 8, 4, 5, 5, 7, 4, 2, 7, 10, 14, 5, 9, 6, 8, 9, 14, 5, 12, 10, 11, 15, 4, 3, 11, 6, 2, 10, 7, 6, 10, 8, 7, 9, 11};
+// uint8_t __attribute__((section(".persistent"))) rd_i = 0;
 
 // void dummy_function(uint16_t cnt) {
 //     atom_func_start_linear(0, cnt);
@@ -176,9 +176,11 @@ int main(void) {
     // uart_init();    // Init UART for printing
     // uint16_t j = 1;  // For dummy function test
     for (;;) {
+        // ******* Linear adaptation test *******
         // aes_128_enc(key, iv, input, output, 16 * rd_arr[rd_i]);
-        aes_256_enc(key, iv, input, output, 16 * rd_arr[rd_i]);
-        if (++rd_i == 50) rd_i = 0;
+        // aes_256_enc(key, iv, input, output, 16 * rd_arr[rd_i]);
+        // if (++rd_i == 50) rd_i = 0;
+
         // ******* Dummy function test *******
         // dummy_function(j);
         // if (++j == 10) {
@@ -191,7 +193,7 @@ int main(void) {
 
         // aes_128_enc(key, iv, input, output, 16);        // Encrypt 256B data
         // aes_128_enc(key, iv, input, output, 32);        // Encrypt 512B data
-        // aes_128_enc(key, iv, input, output, 64);        // Encrypt 1KB data
+        aes_128_enc(key, iv, input, output, 64);        // Encrypt 1KB data
         // aes_128_enc(key, iv, input, output, 96);        // Encrypt 1.5KB data
         // aes_128_enc(key, iv, input, output, 128);       // Encrypt 2KB data
         // aes_128_enc(key, iv, input, output, 160);       // Encrypt 2.5KB data

@@ -24,11 +24,11 @@
 
 #define COMPARATOR_DELAY            __delay_cycles(280)     // 35us
 
-#define DEFAULT_HI_THRESHOLD        56      // Value from threshold table
+#define DEFAULT_HI_THRESHOLD        66      // Value from threshold table
 #define DEFAULT_LO_THRESHOLD        95      // Value from threshold table
                                             // Should be 2V
                                             // otherwise our ADC doesn't work
-#define PROFILING_THRESHOLD         21      // Index from threshold table, initial threshold
+#define PROFILING_THRESHOLD         15      // Index from threshold table, initial threshold
 #define FIXED_THRESHOLD             35      // Used in test
 #define THRESHOLD_TABLE_MAX_INDEX   28
 #define ADC_STEP                    32
